@@ -8,7 +8,7 @@ Compose-MVP für `mcaffen.de` mit Rangliste, Voten und Serverstatus.
 - **Datenzugriff:** Retrofit/Moshi gegen `https://mcaffen.de/{rangliste,voten,status}`
 - **Offline-Fallback:** Room speichert den letzten erfolgreichen Abruf
 - **Connector:** `app://connector_openai_deep_research` ist als Deep-Link registriert
-- **CI/CD:** Push/PR baut und lintet; Tags wie `v1.0.0` erzeugen ein GitHub Release
+- **CI/CD:** Pull Requests werden bei jedem Update gebaut und gelintet; Pushes auf `main` starten den Check ebenfalls. Tags wie `v1.0.0` erzeugen ein GitHub Release
 
 Die API-Endpunkte sind derzeit gemäß der vorgegebenen Annahme modelliert. Falls die Website abweichende JSON-Formate liefert, müssen nur die Modelle bzw. Retrofit-Adapter angepasst werden.
 
