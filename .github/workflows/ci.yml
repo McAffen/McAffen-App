@@ -2,11 +2,18 @@ name: Android CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - '**'
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: android-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: Verify Android build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,4 +23,5 @@ jobs:
           java-version: '17'
           cache: gradle
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew test lint assembleDebug
+      - name: Run tests, lint, and debug build
+        run: ./gradlew test lint assembleDebug --parallel --build-cache
