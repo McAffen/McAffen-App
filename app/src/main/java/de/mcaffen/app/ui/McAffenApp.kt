@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
@@ -53,6 +54,7 @@ import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.model.VoteSite
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 private enum class Tab(val title: String) {
     LEADERBOARD("Rangliste"),
@@ -80,6 +82,7 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun McAffenApp(repository: McAffenRepository) {
     val vm: McAffenViewModel = viewModel(
