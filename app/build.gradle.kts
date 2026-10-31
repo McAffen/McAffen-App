@@ -65,6 +65,9 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
+    // AsyncImage für Minecraft-Avatare (mc-heads.net, wie auch auf der Website).
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
     // Tooling for Compose previews in the IDE.
     debugImplementation("androidx.compose.ui:ui-tooling")
 

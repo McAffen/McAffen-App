@@ -65,6 +65,22 @@ components:
           type: string
         url:
           type: string
+    ServerInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Server name, e.g. "Lobby"
+        type:
+          type: string
+          enum: [proxy, backend]
+        online:
+          type: boolean
+        players:
+          type: integer
+        version:
+          type: string
+          description: Server version or maintenance notice (may contain color codes)
     ServerStatus:
       type: object
       properties:
@@ -76,3 +92,8 @@ components:
           type: array
           items:
             type: string
+        servers:
+          type: array
+          description: Per-server status of the whole network
+          items:
+            $ref: '#/components/schemas/ServerInfo'

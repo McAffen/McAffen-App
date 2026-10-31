@@ -4,6 +4,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import de.mcaffen.app.model.AppRelease
+import de.mcaffen.app.model.ServerInfo
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.network.GitHubReleaseApi
 import de.mcaffen.app.network.McAffenApi
@@ -27,7 +28,16 @@ class McAffenRepository(
 ) {
     val players = dao.players().map { items -> items.map(PlayerEntity::toModel) }
     val voteSites = dao.voteSites().map { items -> items.map(VoteSiteEntity::toModel) }
-    val status = dao.status().map { it?.toModel() }
+
+    /** Status inklusive per-Server-Liste; servers steckt als JSON im Room-Cache. */
+    val status: Flow<ServerStatus?> = dao.status().map { entity ->
+        entity?.let { cached ->
+            val servers = cached.servers?.takeIf(String::isNotBlank)?.let { json ->
+                runCatching { serversAdapter.fromJson(json) }.getOrNull()
+            }.orEmpty()
+            ServerStatus(cached.onlinePlayers, cached.networkServers, cached.messages.lines(), servers)
+        }
+    }
 
     /** Synchronisierte Rechtstexte nach ID (impressum, datenschutz, agb). */
     val legalCache: Flow<Map<String, LegalCacheEntity>> =
@@ -35,6 +45,10 @@ class McAffenRepository(
 
     private val legalAdapter = moshi.adapter<Map<String, LegalRaw>>(
         Types.newParameterizedType(Map::class.java, String::class.java, LegalRaw::class.java),
+    )
+
+    private val serversAdapter = moshi.adapter<List<ServerInfo>>(
+        Types.newParameterizedType(List::class.java, ServerInfo::class.java),
     )
 
     suspend fun latestRelease(): AppRelease {
@@ -47,7 +61,12 @@ class McAffenRepository(
         val leaderboard = async { api.getLeaderboard() }
         val votes = async { api.getVoteSites() }
         val serverStatus = async { api.getServerStatus() }
-        dao.savePlayers(leaderboard.await().map { PlayerEntity(it.name, it.score) })
+        val oldScores = dao.currentPlayers().associate { it.name to it.score }
+        dao.savePlayers(
+            leaderboard.await().map { stat ->
+                PlayerEntity(stat.name, stat.score, oldScores[stat.name]?.takeIf { it != stat.score })
+            },
+        )
         dao.saveVoteSites(votes.await().map { VoteSiteEntity(it.site, it.url) })
         val current = serverStatus.await()
         dao.saveStatus(
@@ -55,6 +74,7 @@ class McAffenRepository(
                 onlinePlayers = current.onlinePlayers,
                 networkServers = current.networkServers,
                 messages = current.messages.joinToString("\n"),
+                servers = current.servers.takeIf { it.isNotEmpty() }?.let { serversAdapter.toJson(it) },
             ),
         )
     }

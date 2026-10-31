@@ -16,7 +16,7 @@ class AppContainer(context: Context) {
         CacheDatabase::class.java,
         "mcaffen-cache.db",
     )
-        .addMigrations(MIGRATION_1_2)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .build()
 
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
