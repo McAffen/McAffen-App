@@ -4,6 +4,7 @@ import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.model.AppRelease
 import de.mcaffen.app.network.McAffenApi
 import de.mcaffen.app.network.GitHubReleaseApi
+import de.mcaffen.app.network.RepoInfo
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.async
@@ -19,8 +20,9 @@ class McAffenRepository(
     val status = dao.status().map { it?.toModel() }
 
     suspend fun latestRelease(): AppRelease {
-        val release = releaseApi.getLatestRelease()
-        return AppRelease(release.tagName, release.htmlUrl, release.name)
+        val release = releaseApi.getLatestRelease(RepoInfo.OWNER, RepoInfo.REPO)
+        val asset = release.assets.firstOrNull { it.browser_download_url.endsWith(".apk", ignoreCase = true) }
+        return AppRelease(release.tag_name, release.html_url, release.name, asset?.browser_download_url)
     }
 
     suspend fun refresh() = coroutineScope {

@@ -149,7 +149,7 @@ fun McAffenApp(repository: McAffenRepository) {
             text = { Text(release.name?.takeIf(String::isNotBlank) ?: "Version ${release.tagName} ist verfügbar.") },
             confirmButton = {
                 Button(onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.assetUrl ?: release.htmlUrl)))
                     vm.dismissUpdate()
                 }) { Text("Update ansehen") }
             },
