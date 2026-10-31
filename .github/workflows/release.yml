@@ -65,11 +65,31 @@ jobs:
             --out "$signed_apk" \
             "$unsigned_apk"
           "$apksigner" verify "$signed_apk"
+      - name: Compute APK checksum
+        id: checksum
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/release/McAffen-release.apk"
+          checksum="$(sha256sum "$apk" | awk '{print $1}')"
+          echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+          printf 'SHA256 %s  McAffen-release.apk\n' "$checksum" \
+            > "app/build/outputs/apk/release/McAffen-release.apk.sha256"
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
+          body: |
+            ## Installation
+            Die App aktualisiert sich selbst (In-App-Update) – ein vorheriges Deinstallieren ist **nicht** nötig.
+
+            **Integrität prüfen (optional):**
+            - `McAffen-release.apk` ↔ SHA-256: `${{ steps.checksum.outputs.checksum }}`
+            - Die Prüfsummendatei hängt als `McAffen-release.apk.sha256` bei (Linux: `sha256sum -c McAffen-release.apk.sha256`).
+
+            **Hinweis zu Google Play Protect:** Apps außerhalb des Play Stores (Download + Installer-Berechtigung) erhalten häufig automatische Warnungen – hierbei handelt es sich um eine Fehlwarnung. Bei der Installationsabfrage **„Details" → „Trotzdem installieren"** wählen; die SHA-256-Prüfsumme oben belegt die Herkunft von diesem offiziellen Repository.
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
-          files: app/build/outputs/apk/release/McAffen-release.apk
+          files: |
+            app/build/outputs/apk/release/McAffen-release.apk
+            app/build/outputs/apk/release/McAffen-release.apk.sha256

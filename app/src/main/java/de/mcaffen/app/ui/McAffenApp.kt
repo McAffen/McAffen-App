@@ -627,6 +627,15 @@ private fun UpdateDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (hasApk) {
+                    Text(
+                        "Hinweis: Android könnte beim Installieren warnen – das passiert bei Apps, " +
+                            "die nicht aus dem Play Store kommen, häufig. Tippe bei der Warnung auf " +
+                            "„Details“ und wähle „Trotzdem installieren“.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 formatBytes(release.assetSize)?.let { size ->
                     Text(
                         "Downloadgröße: $size",
