@@ -15,3 +15,9 @@ data class ServerStatus(
     val networkServers: Int,
     val messages: List<String>,
 )
+
+data class AppRelease(
+    val tagName: String,
+    val htmlUrl: String,
+    val name: String?,
+)

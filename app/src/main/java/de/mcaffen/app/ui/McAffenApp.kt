@@ -2,6 +2,7 @@ package de.mcaffen.app.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,7 +19,6 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -54,11 +54,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import de.mcaffen.app.R
 import de.mcaffen.app.data.McAffenRepository
 import de.mcaffen.app.model.PlayerStat
+import de.mcaffen.app.model.AppRelease
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.model.VoteSite
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import de.mcaffen.app.BuildConfig
 
 private enum class Tab(val title: String) {
     LEADERBOARD("Rangliste"),
@@ -74,6 +76,8 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
     val loading = _loading.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
+    private val _update = MutableStateFlow<AppRelease?>(null)
+    val update = _update.asStateFlow()
 
     fun refresh() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -84,11 +88,40 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
             _loading.value = false
         }
     }
+
+    fun checkForUpdate() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { repository.latestRelease() }
+                .onSuccess { release ->
+                    if (isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)) {
+                        _update.value = release
+                    }
+                }
+        }
+    }
+
+    fun dismissUpdate() {
+        _update.value = null
+    }
+
+    private fun isNewerVersion(candidate: String, current: String): Boolean {
+        fun parts(value: String) = value.trim().removePrefix("v").split('.')
+            .map { it.takeWhile(Char::isDigit).toIntOrNull() ?: 0 }
+        val newer = parts(candidate)
+        val installed = parts(current)
+        for (index in 0 until maxOf(newer.size, installed.size)) {
+            val candidatePart = newer.getOrElse(index) { 0 }
+            val currentPart = installed.getOrElse(index) { 0 }
+            if (candidatePart != currentPart) return candidatePart > currentPart
+        }
+        return false
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun McAffenApp(repository: McAffenRepository) {
+    val context = LocalContext.current
     val vm: McAffenViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -101,11 +134,30 @@ fun McAffenApp(repository: McAffenRepository) {
     val status by vm.status.collectAsStateWithLifecycle(null)
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
+    val update by vm.update.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableStateOf(Tab.LEADERBOARD) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { vm.refresh() }
+    LaunchedEffect(Unit) { vm.checkForUpdate() }
     LaunchedEffect(error) { error?.let { snackbar.showSnackbar(it) } }
+
+    update?.let { release ->
+        AlertDialog(
+            onDismissRequest = vm::dismissUpdate,
+            title = { Text("Neues Update verfügbar") },
+            text = { Text(release.name?.takeIf(String::isNotBlank) ?: "Version ${release.tagName} ist verfügbar.") },
+            confirmButton = {
+                Button(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
+                    vm.dismissUpdate()
+                }) { Text("Update ansehen") }
+            },
+            dismissButton = {
+                Button(onClick = vm::dismissUpdate) { Text("Später") }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -155,7 +207,7 @@ fun McAffenApp(repository: McAffenRepository) {
         } else {
             when (selectedTab) {
                 Tab.LEADERBOARD -> LeaderboardScreen(players, Modifier.padding(padding))
-                Tab.VOTES -> VoteScreen(voteSites, Modifier.padding(padding))
+                Tab.VOTES -> VoteScreen(players, voteSites, Modifier.padding(padding))
                 Tab.STATUS -> StatusScreen(status, Modifier.padding(padding))
             }
         }
@@ -197,26 +249,56 @@ private fun LeaderboardScreen(players: List<PlayerStat>, modifier: Modifier = Mo
 }
 
 @Composable
-private fun VoteScreen(voteSites: List<VoteSite>, modifier: Modifier = Modifier) {
+private fun VoteScreen(
+    players: List<PlayerStat>,
+    voteSites: List<VoteSite>,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
+    var name by remember { mutableStateOf("") }
+    var searchedName by remember { mutableStateOf<String?>(null) }
+    val player = players.firstOrNull { it.name.equals(searchedName, ignoreCase = true) }
+    val canVote = player != null && name.trim().equals(searchedName, ignoreCase = true)
+
     Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Dein Minecraft-Name", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-        var name by remember { mutableStateOf("") }
-        OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Spielername") })
+        OutlinedTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                searchedName = null
+            },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("Spielername") },
+        )
+        Button(
+            onClick = { searchedName = name.trim().takeIf(String::isNotEmpty) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = name.isNotBlank() && players.isNotEmpty(),
+        ) {
+            Icon(Icons.Default.Search, contentDescription = null)
+            Text("  Suchen")
+        }
+        when {
+            searchedName != null && player != null ->
+                Text("Spieler gefunden. Du kannst jetzt voten.")
+            searchedName != null ->
+                Text("Spieler nicht gefunden. Prüfe die Schreibweise.")
+        }
         Text("Für jede Abstimmung erhältst du Belohnungen wie Vote-Schlüssel und Coins.")
         voteSites.forEach { site ->
             Button(
-                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(site.url))) },
+                onClick = {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(site.url).buildUpon()
+                            .appendQueryParameter("username", player!!.name)
+                            .build()),
+                    )
+                },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.isNotBlank(),
+                enabled = canVote,
             ) { Text("Bei ${site.site} voten") }
-        }
-        Button(
-            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("app://connector_openai_deep_research"))) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(Icons.Default.Settings, contentDescription = null)
-            Text("  Deep Research öffnen")
         }
     }
 }
