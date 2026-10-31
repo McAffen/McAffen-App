@@ -1,0 +1,78 @@
+openapi: 3.0.3
+info:
+  title: McAffen API
+  description: API for mcaffen.de
+  version: 1.0.0
+servers:
+  - url: https://mcaffen.de/api
+paths:
+  /rangliste:
+    get:
+      tags:
+        - Leaderboard
+      summary: Retrieve the leaderboard
+      operationId: getLeaderboard
+      responses:
+        '200':
+          description: A list of player statistics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlayerStat'
+  /voten:
+    get:
+      tags:
+        - Voting
+      summary: Retrieve the voting sites
+      operationId: getVoteSites
+      responses:
+        '200':
+          description: A list of vote sites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VoteSite'
+  /status:
+    get:
+      tags:
+        - Status
+      summary: Retrieve server status
+      operationId: getServerStatus
+      responses:
+        '200':
+          description: Server status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerStatus'
+components:
+  schemas:
+    PlayerStat:
+      type: object
+      properties:
+        name:
+          type: string
+        score:
+          type: integer
+    VoteSite:
+      type: object
+      properties:
+        site:
+          type: string
+        url:
+          type: string
+    ServerStatus:
+      type: object
+      properties:
+        onlinePlayers:
+          type: integer
+        networkServers:
+          type: integer
+        messages:
+          type: array
+          items:
+            type: string
