@@ -7,6 +7,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import de.mcaffen.app.model.PlayerStat
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.model.VoteSite
@@ -26,6 +28,15 @@ data class ServerStatusEntity(
     val messages: String,
 )
 
+/** Zuletzt von mcaffen.de synchronisierter Rechtstext (Impressum, Datenschutz, AGB). */
+@Entity(tableName = "legal_cache", primaryKeys = ["id"])
+data class LegalCacheEntity(
+    val id: String,
+    val title: String,
+    val html: String,
+    val updatedAt: Long,
+)
+
 @Dao
 interface CacheDao {
     @Query("SELECT * FROM players ORDER BY score DESC")
@@ -37,6 +48,9 @@ interface CacheDao {
     @Query("SELECT * FROM server_status WHERE id = 0")
     fun status(): Flow<ServerStatusEntity?>
 
+    @Query("SELECT * FROM legal_cache")
+    fun legalCache(): Flow<List<LegalCacheEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun savePlayers(players: List<PlayerEntity>)
 
@@ -45,11 +59,27 @@ interface CacheDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveStatus(status: ServerStatusEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveLegal(items: List<LegalCacheEntity>)
+}
+
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS legal_cache (" +
+                "`id` TEXT NOT NULL, " +
+                "`title` TEXT NOT NULL, " +
+                "`html` TEXT NOT NULL, " +
+                "`updatedAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`id`))",
+        )
+    }
 }
 
 @Database(
-    entities = [PlayerEntity::class, VoteSiteEntity::class, ServerStatusEntity::class],
-    version = 1,
+    entities = [PlayerEntity::class, VoteSiteEntity::class, ServerStatusEntity::class, LegalCacheEntity::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class CacheDatabase : RoomDatabase() {

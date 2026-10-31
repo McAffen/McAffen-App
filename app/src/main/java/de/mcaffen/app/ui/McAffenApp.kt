@@ -3,8 +3,11 @@ package de.mcaffen.app.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
@@ -28,6 +32,7 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -37,6 +42,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +56,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,7 +67,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -71,10 +80,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import de.mcaffen.app.BuildConfig
 import de.mcaffen.app.R
 import de.mcaffen.app.data.McAffenRepository
+import de.mcaffen.app.data.SettingsStore
 import de.mcaffen.app.model.AppRelease
 import de.mcaffen.app.model.PlayerStat
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.model.VoteSite
+import de.mcaffen.app.ui.ThemeOptions
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,6 +106,7 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
     val players = repository.players
     val voteSites = repository.voteSites
     val status = repository.status
+    val legalCache = repository.legalCache
     private val _loading = MutableStateFlow(false)
     val loading = _loading.asStateFlow()
     private val _error = MutableStateFlow<String?>(null)
@@ -105,6 +121,7 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
             runCatching { repository.refresh() }
                 .onFailure { _error.value = "Daten konnten nicht geladen werden. Cache wird angezeigt." }
             _loading.value = false
+            runCatching { repository.refreshLegal() }
         }
     }
 
@@ -137,9 +154,9 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun McAffenApp(repository: McAffenRepository) {
+fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     val context = LocalContext.current
     val vm: McAffenViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
@@ -154,10 +171,12 @@ fun McAffenApp(repository: McAffenRepository) {
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
     val update by vm.update.collectAsStateWithLifecycle()
+    val legalCache by vm.legalCache.collectAsStateWithLifecycle(emptyMap())
+    val myName by settings.playerName.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableStateOf(Tab.LEADERBOARD) }
     var isMenuExpanded by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
-    var legal by remember { mutableStateOf<LegalDocument?>(null) }
+    var legalKey by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { vm.refresh() }
@@ -194,8 +213,8 @@ fun McAffenApp(repository: McAffenRepository) {
             confirmButton = {
                 Column {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { showAbout = false; legal = impressumDocument }) { Text("Impressum") }
-                        TextButton(onClick = { showAbout = false; legal = datenschutzDocument }) { Text("Datenschutz") }
+                        TextButton(onClick = { showAbout = false; legalKey = "impressum" }) { Text("Impressum") }
+                        TextButton(onClick = { showAbout = false; legalKey = "datenschutz" }) { Text("Datenschutz") }
                     }
                     Button(onClick = { showAbout = false }, modifier = Modifier.fillMaxWidth()) { Text("Schließen") }
                 }
@@ -203,8 +222,11 @@ fun McAffenApp(repository: McAffenRepository) {
         )
     }
 
-    legal?.let { document ->
-        LegalDialog(document = document, onDismiss = { legal = null })
+    legalKey?.let { key ->
+        val cached = legalCache[key]
+        legalDocument(key, cached?.title, cached?.html)
+    }?.let { document ->
+        LegalDialog(document = document, onDismiss = { legalKey = null })
     }
 
     Scaffold(
@@ -278,15 +300,40 @@ fun McAffenApp(repository: McAffenRepository) {
             LoadingState(Modifier.padding(padding))
         } else {
             when (selectedTab) {
-                Tab.LEADERBOARD -> LeaderboardScreen(players, Modifier.padding(padding))
-                Tab.VOTES -> VoteScreen(players, voteSites, Modifier.padding(padding))
-                Tab.STATUS -> StatusScreen(status, Modifier.padding(padding))
+                Tab.LEADERBOARD -> LeaderboardScreen(
+                    players = players,
+                    myName = myName,
+                    loading = loading,
+                    onRefresh = vm::refresh,
+                    modifier = Modifier.padding(padding),
+                )
+                Tab.VOTES -> VoteScreen(
+                    players = players,
+                    voteSites = voteSites,
+                    storedName = myName,
+                    onStoreName = settings::setPlayerName,
+                    loading = loading,
+                    onRefresh = vm::refresh,
+                    modifier = Modifier.padding(padding),
+                )
+                Tab.STATUS -> StatusScreen(
+                    status = status,
+                    loading = loading,
+                    onRefresh = vm::refresh,
+                    modifier = Modifier.padding(padding),
+                )
                 Tab.SETTINGS -> SettingsScreen(
                     version = BuildConfig.VERSION_NAME,
+                    darkMode = settings.darkMode.collectAsStateWithLifecycle().value,
+                    onDarkModeChange = settings::setDarkMode,
+                    color = settings.color.collectAsStateWithLifecycle().value,
+                    onColorChange = settings::setColor,
                     onRefresh = vm::refresh,
-                    onImpressum = { legal = impressumDocument },
-                    onDatenschutz = { legal = datenschutzDocument },
-                    onAgb = { legal = agbDocument },
+                    onOpenLegal = { legalKey = it },
+                    playerName = myName,
+                    onPlayerNameChange = settings::setPlayerName,
+                    legalLastSync = legalCache.values.maxOfOrNull { it.updatedAt } ?: 0L,
+                    legalCached = legalCache.isNotEmpty(),
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -306,58 +353,76 @@ private fun LoadingState(modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun LeaderboardScreen(players: List<PlayerStat>, modifier: Modifier = Modifier) {
+private fun LeaderboardScreen(
+    players: List<PlayerStat>,
+    myName: String,
+    loading: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var query by remember { mutableStateOf("") }
     val filtered = players.filter { it.name.contains(query, ignoreCase = true) }
-    Column(modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            label = { Text("Spieler suchen") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            singleLine = true,
-        )
-        if (players.isEmpty()) {
-            EmptyHint("Noch keine Ranglistendaten verfügbar.", Modifier.padding(top = 20.dp))
-        } else if (filtered.isEmpty()) {
-            EmptyHint("Kein Spieler gefunden.", Modifier.padding(top = 20.dp))
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(filtered, key = { it.name }) { player ->
-                    val position = players.indexOfFirst { it.name == player.name } + 1
-                    Card(
-                        Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        ),
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+    PullToRefreshBox(isRefreshing = loading, onRefresh = onRefresh, modifier = modifier) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                label = { Text("Spieler suchen") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+            )
+            if (players.isEmpty()) {
+                EmptyHint("Noch keine Ranglistendaten verfügbar.", Modifier.padding(top = 20.dp))
+            } else if (filtered.isEmpty()) {
+                EmptyHint("Kein Spieler gefunden.", Modifier.padding(top = 20.dp))
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(filtered, key = { it.name }) { player ->
+                        val position = players.indexOfFirst { it.name == player.name } + 1
+                        val isMe = myName.isNotBlank() && player.name.equals(myName, ignoreCase = true)
+                        Card(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isMe) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                            ),
                         ) {
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    RankBadge(position)
+                                    Column {
+                                        Text(player.name, fontWeight = FontWeight.Medium)
+                                        if (isMe) {
+                                            Text(
+                                                "Du",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
+                                    }
+                                }
                                 Text(
-                                    "#$position",
-                                    fontWeight = FontWeight.Bold,
-                                    color = when (position) {
-                                        1 -> Color(0xFFFFD54F)
-                                        2 -> Color(0xFFCFD8DC)
-                                        3 -> Color(0xFFBC8546)
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
+                                    "${formatScore(player.score)} Punkte",
+                                    fontWeight = FontWeight.SemiBold,
                                 )
-                                Text(player.name, fontWeight = FontWeight.Medium)
                             }
-                            Text("${player.score} Punkte")
                         }
                     }
                 }
@@ -367,51 +432,95 @@ private fun LeaderboardScreen(players: List<PlayerStat>, modifier: Modifier = Mo
 }
 
 @Composable
+private fun RankBadge(position: Int) {
+    val medalColor = when (position) {
+        1 -> Color(0xFFFFB300)
+        2 -> Color(0xFFB0BEC5)
+        3 -> Color(0xFFB87333)
+        else -> null
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        medalColor?.let { color ->
+            Icon(
+                Icons.Default.EmojiEvents,
+                contentDescription = null,
+                tint = color,
+            )
+        }
+        Text(
+            "#$position",
+            fontWeight = FontWeight.Bold,
+            color = medalColor ?: MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private fun formatScore(score: Int): String =
+    NumberFormat.getIntegerInstance(Locale.GERMANY).format(score)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun VoteScreen(
     players: List<PlayerStat>,
     voteSites: List<VoteSite>,
+    storedName: String,
+    onStoreName: (String) -> Unit,
+    loading: Boolean,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(storedName) }
     var searchedName by remember { mutableStateOf<String?>(null) }
     val player = players.firstOrNull { it.name.equals(searchedName, ignoreCase = true) }
     val canVote = player != null && name.trim().equals(searchedName, ignoreCase = true)
     val selectedPlayerName = player?.name
+    val canSearch = name.isNotBlank() && players.isNotEmpty()
 
-    Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Dein Minecraft-Name", style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                searchedName = null
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            placeholder = { Text("Spielername") },
-        )
-        Button(
-            onClick = { searchedName = name.trim().takeIf(String::isNotEmpty) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank() && players.isNotEmpty(),
+    PullToRefreshBox(isRefreshing = loading, onRefresh = onRefresh, modifier = modifier) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Default.Search, contentDescription = null)
-            Text("  Suchen")
-        }
-        when {
-            searchedName != null && player != null ->
-                Text("Spieler gefunden. Du kannst jetzt voten.")
-            searchedName != null ->
-                Text("Spieler nicht gefunden. Prüfe die Schreibweise.")
-        }
-        Text("Für jede Abstimmung erhältst du Belohnungen wie Vote-Schlüssel und Coins.")
-        if (voteSites.isEmpty()) {
-            EmptyHint("Keine Vote-Seiten verfügbar.")
-        } else {
+            Text("Dein Minecraft-Name", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = name,
+                onValueChange = {
+                    name = it
+                    searchedName = null
+                    onStoreName(it.trim())
+                },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Spielername") },
+                supportingText = {
+                    Text("Dein Name wird gespeichert, damit du ihn nicht jedes Mal neu eingeben musst.")
+                },
+            )
+            Button(
+                onClick = { searchedName = name.trim().takeIf(String::isNotEmpty) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = name.isNotBlank() && players.isNotEmpty(),
+            ) {
+                Icon(Icons.Default.Search, contentDescription = null)
+                Text("  Suchen")
+            }
+            when {
+                searchedName != null && player != null ->
+                    Text("Spieler gefunden. Du kannst jetzt voten.")
+                searchedName != null ->
+                    Text("Spieler nicht gefunden. Prüfe die Schreibweise.")
+                !canSearch ->
+                    Text(
+                        "Gib deinen Minecraft-Namen ein, um voten zu können.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+            }
+            Text("Für jede Abstimmung erhältst du Belohnungen wie Vote-Schlüssel und Coins.")
+            if (voteSites.isEmpty()) {
+                EmptyHint("Keine Vote-Seiten verfügbar.")
+            } else {
             voteSites.forEach { site ->
                 val voteUri = selectedPlayerName?.let { playerName ->
                     site.url.toHttpsUri()?.buildUpon()
@@ -454,50 +563,132 @@ private fun VoteScreen(
         }
     }
 }
+}
 
 private fun String.toHttpsUri(): Uri? {
     val uri = runCatching { Uri.parse(trim()) }.getOrNull() ?: return null
     return uri.takeIf { it.scheme.equals("https", ignoreCase = true) && !it.host.isNullOrBlank() }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StatusScreen(status: ServerStatus?, modifier: Modifier = Modifier) {
-    Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (status == null) {
-            EmptyHint("Noch keine Statusdaten verfügbar.")
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatusCard(
-                    Modifier.weight(1f),
-                    icon = Icons.Default.Group,
-                    value = status.onlinePlayers.toString(),
-                    label = "Spieler online",
-                )
-                StatusCard(
-                    Modifier.weight(1f),
-                    icon = Icons.Default.Dns,
-                    value = status.networkServers.toString(),
-                    label = "Netzwerk-Server",
-                )
+private fun StatusScreen(
+    status: ServerStatus?,
+    loading: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    PullToRefreshBox(isRefreshing = loading, onRefresh = onRefresh, modifier = modifier) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (status == null) {
+                EmptyHint("Noch keine Statusdaten verfügbar.")
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatusCard(
+                        Modifier.weight(1f),
+                        icon = Icons.Default.Group,
+                        value = formatScore(status.onlinePlayers),
+                        label = "Spieler online",
+                    )
+                    StatusCard(
+                        Modifier.weight(1f),
+                        icon = Icons.Default.Dns,
+                        value = status.networkServers.toString(),
+                        label = "Netzwerk-Server",
+                    )
+                }
             }
-            Text("Aktuelle Meldungen", style = MaterialTheme.typography.titleMedium)
-            if (status.messages.filter(String::isNotBlank).isEmpty()) {
-                EmptyHint("Keine Meldungen.")
-            }
-            status.messages.filter(String::isNotBlank).forEach { message ->
-                Card(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Campaign,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(message, Modifier.padding(start = 12.dp))
+            ServerAddressCard()
+            CommunityLinksCard(
+                onOpen = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+            )
+            if (status != null) {
+                Text("Aktuelle Meldungen", style = MaterialTheme.typography.titleMedium)
+                if (status.messages.filter(String::isNotBlank).isEmpty()) {
+                    EmptyHint("Keine Meldungen.")
+                }
+                status.messages.filter(String::isNotBlank).forEach { message ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Default.Campaign,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(message, Modifier.padding(start = 12.dp))
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServerAddressCard() {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            kotlinx.coroutines.delay(2000)
+            copied = false
+        }
+    }
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(
+                    Icons.Default.SportsEsports,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Column {
+                    Text(
+                        "Java-Edition",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Text(
+                        "mcaffen.de",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            Button(onClick = {
+                clipboard.setText(AnnotatedString("mcaffen.de"))
+                copied = true
+            }) {
+                Icon(Icons.Default.ContentCopy, contentDescription = null)
+                Text(if (copied) " Kopiert" else " Kopieren")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommunityLinksCard(onOpen: (String) -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Community", style = MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onOpen("https://mcaffen.de") }) { Text("Website") }
+                TextButton(onClick = { onOpen("https://discord.com/invite/tpyHQqBzVD") }) { Text("Discord") }
+                TextButton(onClick = { onOpen("https://www.youtube.com/@McAffenofficial") }) { Text("YouTube") }
             }
         }
     }
@@ -522,13 +713,20 @@ private fun StatusCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SettingsScreen(
     version: String,
+    darkMode: String,
+    onDarkModeChange: (String) -> Unit,
+    color: String,
+    onColorChange: (String) -> Unit,
     onRefresh: () -> Unit,
-    onImpressum: () -> Unit,
-    onDatenschutz: () -> Unit,
-    onAgb: () -> Unit,
+    onOpenLegal: (String) -> Unit,
+    playerName: String,
+    onPlayerNameChange: (String) -> Unit,
+    legalLastSync: Long,
+    legalCached: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -541,6 +739,46 @@ private fun SettingsScreen(
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
+        Card {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Darstellung", style = MaterialTheme.typography.titleMedium)
+                Text("Dark-Mode", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeOptions.darkModes.forEach { (value, label) ->
+                        FilterChip(
+                            selected = darkMode == value,
+                            onClick = { onDarkModeChange(value) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+                Text("Farbschema", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ThemeOptions.colors.forEach { (value, label) ->
+                        FilterChip(
+                            selected = color == value,
+                            onClick = { onColorChange(value) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+            }
+        }
+        Card {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Profil", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = playerName,
+                    onValueChange = onPlayerNameChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Dein Minecraft-Name") },
+                    supportingText = {
+                        Text("Wird auf der Vote-Seite vorausgefüllt und hebt dich in der Rangliste hervor.")
+                    },
+                )
+            }
+        }
         Card {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("App", style = MaterialTheme.typography.titleMedium)
@@ -570,18 +808,26 @@ private fun SettingsScreen(
         Card {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Rechtliches", style = MaterialTheme.typography.titleMedium)
-                OutlinedButton(
-                    onClick = onImpressum,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Impressum") }
-                OutlinedButton(
-                    onClick = onDatenschutz,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Datenschutzerklärung") }
-                OutlinedButton(
-                    onClick = onAgb,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Allgemeine Geschäftsbedingungen (AGB)") }
+                Text(
+                    "Rechtstexte werden automatisch mit mcaffen.de synchronisiert." +
+                        if (legalCached) {
+                            val formatter = SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale.getDefault())
+                            " Zuletzt: ${formatter.format(Date(legalLastSync))} Uhr."
+                        } else {
+                            " Aktuell werden die integrierten Texte angezeigt."
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = { onOpenLegal("impressum") }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Impressum")
+                }
+                OutlinedButton(onClick = { onOpenLegal("datenschutz") }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Datenschutzerklärung")
+                }
+                OutlinedButton(onClick = { onOpenLegal("agb") }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Allgemeine Geschäftsbedingungen (AGB)")
+                }
             }
         }
     }
