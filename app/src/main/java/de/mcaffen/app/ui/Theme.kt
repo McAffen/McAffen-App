@@ -23,7 +23,7 @@ private val McAffenLightColorScheme = lightColorScheme(
 fun McAffenTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = McAffenLightColorScheme,
-        typography = ComposeTypography,
+        typography = ComposeTypography(),
         content = content
     )
 }
