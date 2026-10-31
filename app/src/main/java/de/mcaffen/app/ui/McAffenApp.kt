@@ -523,9 +523,7 @@ private fun VoteScreen(
             } else {
             voteSites.forEach { site ->
                 val voteUri = selectedPlayerName?.let { playerName ->
-                    site.url.toHttpsUri()?.buildUpon()
-                        ?.appendQueryParameter("username", playerName)
-                        ?.build()
+                    site.url.toVoteUri(playerName)
                 }
                 Card(
                     Modifier.fillMaxWidth(),
@@ -565,9 +563,23 @@ private fun VoteScreen(
 }
 }
 
-private fun String.toHttpsUri(): Uri? {
-    val uri = runCatching { Uri.parse(trim()) }.getOrNull() ?: return null
-    return uri.takeIf { it.scheme.equals("https", ignoreCase = true) && !it.host.isNullOrBlank() }
+/** Ersetzt {user}-Platzhalter in Vote-URLs durch den Spielernamen und prüft auf HTTPS. */
+private fun String.toVoteUri(playerName: String): Uri? {
+    val placeholderRegex = Regex("\\{user(name)?\\}", RegexOption.IGNORE_CASE)
+    val encoded = Uri.encode(playerName)
+    val replaced = replace(placeholderRegex, encoded)
+    val hasPlaceholder = placeholderRegex.containsMatchIn(this)
+    var uri = runCatching { Uri.parse(replaced.trim()) }.getOrNull() ?: return null
+    if (uri.scheme == "http") {
+        uri = uri.buildUpon().scheme("https").build()
+    }
+    val valid = uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()
+    if (!valid) return null
+    // Fallback für Seiten ohne Platzhalter: Namen als Query-Parameter anhängen.
+    if (!hasPlaceholder && playerName.isNotBlank()) {
+        uri = uri.buildUpon().appendQueryParameter("username", encoded).build()
+    }
+    return uri
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
