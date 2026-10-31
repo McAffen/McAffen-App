@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -47,6 +48,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -155,6 +157,7 @@ fun McAffenApp(repository: McAffenRepository) {
     var selectedTab by remember { mutableStateOf(Tab.LEADERBOARD) }
     var isMenuExpanded by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var legal by remember { mutableStateOf<LegalDocument?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { vm.refresh() }
@@ -189,9 +192,19 @@ fun McAffenApp(repository: McAffenRepository) {
                 }
             },
             confirmButton = {
-                Button(onClick = { showAbout = false }) { Text("Schließen") }
+                Column {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { showAbout = false; legal = impressumDocument }) { Text("Impressum") }
+                        TextButton(onClick = { showAbout = false; legal = datenschutzDocument }) { Text("Datenschutz") }
+                    }
+                    Button(onClick = { showAbout = false }, modifier = Modifier.fillMaxWidth()) { Text("Schließen") }
+                }
             },
         )
+    }
+
+    legal?.let { document ->
+        LegalDialog(document = document, onDismiss = { legal = null })
     }
 
     Scaffold(
@@ -271,6 +284,9 @@ fun McAffenApp(repository: McAffenRepository) {
                 Tab.SETTINGS -> SettingsScreen(
                     version = BuildConfig.VERSION_NAME,
                     onRefresh = vm::refresh,
+                    onImpressum = { legal = impressumDocument },
+                    onDatenschutz = { legal = datenschutzDocument },
+                    onAgb = { legal = agbDocument },
                     modifier = Modifier.padding(padding),
                 )
             }
@@ -427,7 +443,7 @@ private fun VoteScreen(
                         ) {
                             Text("Voten")
                             Icon(
-                                Icons.Default.OpenInNew,
+                                Icons.AutoMirrored.Filled.OpenInNew,
                                 contentDescription = null,
                                 Modifier.padding(start = 4.dp).size(16.dp),
                             )
@@ -510,6 +526,9 @@ private fun StatusCard(
 private fun SettingsScreen(
     version: String,
     onRefresh: () -> Unit,
+    onImpressum: () -> Unit,
+    onDatenschutz: () -> Unit,
+    onAgb: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -546,6 +565,23 @@ private fun SettingsScreen(
                 ) {
                     Text("Auf GitHub öffnen")
                 }
+            }
+        }
+        Card {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Rechtliches", style = MaterialTheme.typography.titleMedium)
+                OutlinedButton(
+                    onClick = onImpressum,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Impressum") }
+                OutlinedButton(
+                    onClick = onDatenschutz,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Datenschutzerklärung") }
+                OutlinedButton(
+                    onClick = onAgb,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Allgemeine Geschäftsbedingungen (AGB)") }
             }
         }
     }
