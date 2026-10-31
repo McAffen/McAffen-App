@@ -7,7 +7,6 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import de.mcaffen.app.network.McAffenApi
 import de.mcaffen.app.network.GitHubReleaseApi
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
@@ -20,13 +19,7 @@ class AppContainer(context: Context) {
 
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://mcaffen.de/")
-        .client(
-            OkHttpClient.Builder()
-                .addInterceptor(HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
-                })
-                .build(),
-        )
+        .client(OkHttpClient.Builder().build())
         .addConverterFactory(
             MoshiConverterFactory.create(
                 Moshi.Builder().add(KotlinJsonAdapterFactory()).build(),

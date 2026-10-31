@@ -5,7 +5,8 @@ Compose-MVP für `mcaffen.de` mit Rangliste, Voten und Serverstatus.
 ## Architektur
 
 - **UI:** Jetpack Compose Material 3 mit Bottom Navigation
-- **Datenzugriff:** Retrofit/Moshi gegen `https://mcaffen.de/{rangliste,voten,status}`; Vote-Links werden erst nach erfolgreicher Spielersuche freigeschaltet
+- **Datenzugriff:** Retrofit/Moshi gegen `https://mcaffen.de/{rangliste,voten,status}`; Ranglistenplätze werden angezeigt und Vote-Links erst nach erfolgreicher Spielersuche sowie HTTPS-Prüfung freigeschaltet
+- **Datenschutz:** Die App enthält keine Zugangsdaten und protokolliert keine Netzwerk-URLs oder Spielernamen
 - **Offline-Fallback:** Room speichert den letzten erfolgreichen Abruf
 - **Updates:** Beim Start wird das neueste GitHub-Release geprüft; bei einer höheren Version erscheint ein Dialog mit dem Release-Link
 - **CI/CD:** Pull Requests werden bei jedem Update gebaut und gelintet; Pushes auf `main` starten den Check ebenfalls. Tags wie `v1.0.0` erzeugen ein GitHub Release

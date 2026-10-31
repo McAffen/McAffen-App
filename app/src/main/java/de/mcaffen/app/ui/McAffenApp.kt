@@ -235,12 +235,22 @@ private fun LeaderboardScreen(players: List<PlayerStat>, modifier: Modifier = Mo
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
         )
-        LazyColumn(contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(filtered, key = { it.name }) { player ->
-                Card(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(player.name, fontWeight = FontWeight.Medium)
-                        Text("${player.score} Punkte")
+        if (players.isEmpty()) {
+            Text("Noch keine Ranglistendaten verfügbar.", Modifier.padding(top = 20.dp))
+        } else if (filtered.isEmpty()) {
+            Text("Kein Spieler gefunden.", Modifier.padding(top = 20.dp))
+        } else {
+            LazyColumn(contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(filtered, key = { it.name }) { player ->
+                    val position = players.indexOfFirst { it.name == player.name } + 1
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("#$position", fontWeight = FontWeight.Bold)
+                                Text(player.name, fontWeight = FontWeight.Medium)
+                            }
+                            Text("${player.score} Punkte")
+                        }
                     }
                 }
             }
@@ -259,6 +269,7 @@ private fun VoteScreen(
     var searchedName by remember { mutableStateOf<String?>(null) }
     val player = players.firstOrNull { it.name.equals(searchedName, ignoreCase = true) }
     val canVote = player != null && name.trim().equals(searchedName, ignoreCase = true)
+    val selectedPlayerName = player?.name
 
     Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Dein Minecraft-Name", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
@@ -287,20 +298,28 @@ private fun VoteScreen(
                 Text("Spieler nicht gefunden. Prüfe die Schreibweise.")
         }
         Text("Für jede Abstimmung erhältst du Belohnungen wie Vote-Schlüssel und Coins.")
-        voteSites.forEach { site ->
-            Button(
-                onClick = {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse(site.url).buildUpon()
-                            .appendQueryParameter("username", player!!.name)
-                            .build()),
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = canVote,
-            ) { Text("Bei ${site.site} voten") }
+        if (voteSites.isEmpty()) {
+            Text("Keine Vote-Seiten verfügbar.")
+        } else {
+            voteSites.forEach { site ->
+                val voteUri = selectedPlayerName?.let { playerName ->
+                    site.url.toHttpsUri()?.buildUpon()
+                        ?.appendQueryParameter("username", playerName)
+                        ?.build()
+                }
+                Button(
+                    onClick = { voteUri?.let { context.startActivity(Intent(Intent.ACTION_VIEW, it)) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = canVote && voteUri != null,
+                ) { Text("Bei ${site.site} voten") }
+            }
         }
     }
+}
+
+private fun String.toHttpsUri(): Uri? {
+    val uri = runCatching { Uri.parse(trim()) }.getOrNull() ?: return null
+    return uri.takeIf { it.scheme.equals("https", ignoreCase = true) && !it.host.isNullOrBlank() }
 }
 
 @Composable
