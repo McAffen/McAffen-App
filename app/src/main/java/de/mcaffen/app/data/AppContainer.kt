@@ -18,7 +18,7 @@ class AppContainer(context: Context) {
     ).build()
 
     private val retrofit = Retrofit.Builder()
-        .baseUrl("https://mcaffen.de/")
+        .baseUrl("https://mcaffen.de/api/")
         .client(OkHttpClient.Builder().build())
         .addConverterFactory(
             MoshiConverterFactory.create(
