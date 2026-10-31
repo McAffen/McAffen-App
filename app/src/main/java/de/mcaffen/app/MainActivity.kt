@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         container = AppContainer(applicationContext)
         setContent {
-            MaterialTheme {
+            McAffenTheme {
                 Surface { McAffenApp(container.repository) }
             }
         }

@@ -2,7 +2,7 @@ package de.mcaffen.app.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.Typography
+import androidx.compose.material3.Typography as ComposeTypography
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
@@ -23,7 +23,7 @@ private val McAffenLightColorScheme = lightColorScheme(
 fun McAffenTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = McAffenLightColorScheme,
-        typography = Typography,
+        typography = ComposeTypography,
         content = content
     )
 }
