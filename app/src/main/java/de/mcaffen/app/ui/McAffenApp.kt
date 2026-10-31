@@ -1,5 +1,6 @@
 package de.mcaffen.app.ui
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
@@ -75,6 +76,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -119,12 +121,14 @@ import de.mcaffen.app.BuildConfig
 import de.mcaffen.app.R
 import de.mcaffen.app.data.McAffenRepository
 import de.mcaffen.app.data.SettingsStore
+import de.mcaffen.app.data.UpdateInstaller
 import de.mcaffen.app.model.AppRelease
 import de.mcaffen.app.model.PlayerStat
 import de.mcaffen.app.model.ServerInfo
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.model.VoteSite
 import de.mcaffen.app.ui.ThemeOptions
+import java.io.File
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -141,6 +145,14 @@ private enum class Tab(val title: String) {
     SETTINGS("Einstellungen"),
 }
 
+/** Fortschritt des direkten In-App-Updates (APK-Download + System-Install-Prompt). */
+sealed interface DownloadState {
+    data object Idle : DownloadState
+    data class Downloading(val progress: Int) : DownloadState
+    data class Ready(val apk: File) : DownloadState
+    data class Failed(val message: String) : DownloadState
+}
+
 class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() {
     val players = repository.players
     val voteSites = repository.voteSites
@@ -152,6 +164,8 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
     val error = _error.asStateFlow()
     private val _update = MutableStateFlow<AppRelease?>(null)
     val update = _update.asStateFlow()
+    private val _download = MutableStateFlow<DownloadState>(DownloadState.Idle)
+    val download = _download.asStateFlow()
 
     fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -177,6 +191,30 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
 
     fun dismissUpdate() {
         _update.value = null
+    }
+
+    /** In-App-Update: lädt die neue APK herunter und startet anschließend den Install-Prompt. */
+    fun startUpdate(context: Context) {
+        val apkUrl = _update.value?.assetUrl ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            _download.value = DownloadState.Downloading(0)
+            runCatching {
+                repository.downloadUpdateApk(
+                    context = context.applicationContext,
+                    url = apkUrl,
+                ) { progress ->
+                    _download.value = DownloadState.Downloading(progress)
+                }
+            }.onSuccess { apk ->
+                _download.value = DownloadState.Ready(apk)
+            }.onFailure { error ->
+                _download.value = DownloadState.Failed(error.message ?: "Update-Download fehlgeschlagen")
+            }
+        }
+    }
+
+    fun resetDownload() {
+        _download.value = DownloadState.Idle
     }
 
     private fun isNewerVersion(candidate: String, current: String): Boolean {
@@ -224,19 +262,77 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     LaunchedEffect(Unit) { vm.checkForUpdate() }
     LaunchedEffect(error) { error?.let { snackbar.showSnackbar(it) } }
 
+    val downloadState by vm.download.collectAsStateWithLifecycle()
+    LaunchedEffect(downloadState) {
+        when (val state = downloadState) {
+            is DownloadState.Ready -> {
+                UpdateInstaller.launchInstall(context, state.apk)
+                vm.resetDownload()
+            }
+            is DownloadState.Failed -> {
+                snackbar.showSnackbar("Update fehlgeschlagen: ${state.message}")
+                vm.resetDownload()
+            }
+            else -> {}
+        }
+    }
+
     update?.let { release ->
+        val downloading = downloadState is DownloadState.Downloading
+        val canInstall = UpdateInstaller.canInstallDirectly(context)
         AlertDialog(
-            onDismissRequest = vm::dismissUpdate,
-            title = { Text("Neues Update verfügbar") },
-            text = { Text(release.name?.takeIf(String::isNotBlank) ?: "Version ${release.tagName} ist verfügbar.") },
+            onDismissRequest = { if (!downloading) vm.dismissUpdate() },
+            title = { Text("Update verfügbar 🚀") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        (release.name?.takeIf(String::isNotBlank) ?: "Neue Version ${release.tagName}") +
+                            "\n\nDeine Version: ${BuildConfig.VERSION_NAME}. Das Update wird direkt in der App " +
+                            "heruntergeladen und über der installierten Version installiert – " +
+                            "deine Einstellungen bleiben erhalten.",
+                    )
+                    when (val state = downloadState) {
+                        is DownloadState.Downloading -> {
+                            LinearProgressIndicator(
+                                progress = { (state.progress / 100f).coerceIn(0f, 1f) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                if (state.progress > 0) "Lädt herunter … ${state.progress} %" else "Lädt herunter …",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        else -> {}
+                    }
+                    if (!canInstall) {
+                        Text(
+                            "Einmalig erforderlich: Erlaube der McAffen-App, „Apps aus unbekannten Quellen“ " +
+                                "zu installieren. Danach aktualisiert sich die App direkt selbst.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
             confirmButton = {
-                Button(onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.assetUrl ?: release.htmlUrl)))
-                    vm.dismissUpdate()
-                }) { Text("Update ansehen") }
+                when {
+                    downloading -> TextButton(onClick = {}, enabled = false) { Text("Lädt …") }
+                    !canInstall ->
+                        Button(onClick = { UpdateInstaller.openUnknownSourcesSettings(context) }) {
+                            Text("Installation erlauben")
+                        }
+                    else -> Button(onClick = { vm.startUpdate(context) }) { Text("Laden & installieren") }
+                }
             },
             dismissButton = {
-                Button(onClick = vm::dismissUpdate) { Text("Später") }
+                if (!downloading) {
+                    TextButton(
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
+                            vm.dismissUpdate()
+                        },
+                    ) { Text("Auf GitHub ansehen") }
+                }
             },
         )
     }

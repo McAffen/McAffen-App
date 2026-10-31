@@ -13,6 +13,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import android.content.Context
+import java.io.File
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -56,6 +58,16 @@ class McAffenRepository(
         val asset = release.assets.firstOrNull { it.browser_download_url.endsWith(".apk", ignoreCase = true) }
         return AppRelease(release.tag_name, release.html_url, release.name, asset?.browser_download_url)
     }
+
+    /**
+     * lädt die APK eines GitHub-Releases herunter und liefert die fertige Datei
+     * für den Install-Prompt (siehe UpdateInstaller).
+     */
+    suspend fun downloadUpdateApk(
+        context: Context,
+        url: String,
+        onProgress: (Int) -> Unit = {},
+    ): File = UpdateInstaller.download(context, client, url, onProgress)
 
     suspend fun refresh() = coroutineScope {
         val leaderboard = async { api.getLeaderboard() }
