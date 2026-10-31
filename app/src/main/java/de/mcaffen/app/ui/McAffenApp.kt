@@ -3,6 +3,9 @@ package de.mcaffen.app.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,6 +49,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,6 +72,7 @@ private enum class Tab(val title: String) {
     LEADERBOARD("Rangliste"),
     VOTES("Voten"),
     STATUS("Status"),
+    SETTINGS("Einstellungen"),
 }
 
 class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() {
@@ -135,7 +142,9 @@ fun McAffenApp(repository: McAffenRepository) {
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
     val update by vm.update.collectAsStateWithLifecycle()
-    var selectedTab by remember { mutableStateOf(Tab.LEADERBOARD) }
+    var isMenuExpanded by remember { mutableStateOf(false) }
+var showSettings by remember { mutableStateOf(false) }
+var showAbout by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { vm.refresh() }
@@ -164,11 +173,35 @@ fun McAffenApp(repository: McAffenRepository) {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(R.drawable.mcaffen_logo),
-                            contentDescription = "McAffen",
-                            modifier = Modifier.size(32.dp),
-                        )
+                        Box {
+                            Image(
+                                painter = painterResource(R.drawable.mcaffen_logo),
+                                contentDescription = "McAffen",
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clickable { isMenuExpanded = !isMenuExpanded }
+                            )
+                            DropdownMenu(
+                                expanded = isMenuExpanded,
+                                onDismissRequest = { isMenuExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Einstellungen") },
+                                    onClick = {
+                                        isMenuExpanded = false
+                                        showSettings = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Über") },
+                                    onClick = {
+                                        isMenuExpanded = false
+                                        showAbout = true
+                                    }
+                                )
+                            }
+                        }
+
                         Text(selectedTab.title, Modifier.padding(start = 8.dp))
                     }
                 },
