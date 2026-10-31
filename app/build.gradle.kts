@@ -9,12 +9,27 @@ android {
     namespace = "de.mcaffen.app"
     compileSdk = 35
 
+    // Versionierung: Im Release-Workflow setzt `./gradlew -PmcaffenTag=v1.0.7 ...`
+    // automatisch versionName ("1.0.7") und versionCode (major*1.000.000 +
+    // minor*1.000 + patch). Ohne Property (lokale Builds, CI) gilt 1.0.0 oder
+    // äquivalent versionCode 1.000.000 – Tags erhöhen den Code automatisch.
+    val releaseTag: String? = providers.gradleProperty("mcaffenTag").orNull
+    val releaseVersionName: String =
+        releaseTag?.trim()?.removePrefix("v")?.takeIf(String::isNotBlank) ?: "1.0.0"
+    val versionParts = releaseVersionName.split('.')
+        .map { part -> part.filter(Char::isDigit).takeIf(String::isNotEmpty)?.toIntOrNull() ?: 0 }
+    val paddedParts = versionParts.take(3) + List(maxOf(0, 3 - versionParts.size)) { 0 }
+    val releaseVersionCode: Int =
+        paddedParts[0].coerceIn(0, 999) * 1_000_000 +
+            paddedParts[1].coerceIn(0, 999) * 1_000 +
+            paddedParts[2].coerceIn(0, 999)
+
     defaultConfig {
         applicationId = "de.mcaffen.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }

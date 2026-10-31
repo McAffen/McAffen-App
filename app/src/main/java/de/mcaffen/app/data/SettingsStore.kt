@@ -16,6 +16,9 @@ class SettingsStore(context: Context) {
     val playerName = MutableStateFlow(prefs.getString(KEY_PLAYER_NAME, "").orEmpty())
     val onboardingDone = MutableStateFlow(prefs.getBoolean(KEY_ONBOARDED, false))
 
+    /** Update-Version, die der Nutzer mit "Später" verworfen hat (wird nicht neu gefragt). */
+    val skippedUpdate = MutableStateFlow(prefs.getString(KEY_SKIPPED_UPDATE, null))
+
     /** Wann wurde welche Vote-Seite zuletzt vom Nutzer geöffnet (2-stündige/24-h-Rhythmus der Vote-Seiten). */
     val voteTimes = MutableStateFlow(readVoteTimes())
 
@@ -37,6 +40,11 @@ class SettingsStore(context: Context) {
     fun setOnboardingDone() {
         prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
         onboardingDone.value = true
+    }
+
+    fun skipUpdate(tag: String) {
+        prefs.edit().putString(KEY_SKIPPED_UPDATE, tag).apply()
+        skippedUpdate.value = tag
     }
 
     fun voteTime(site: String): Long = voteTimes.value[site] ?: 0L
@@ -78,6 +86,7 @@ class SettingsStore(context: Context) {
         const val KEY_COLOR = "color"
         const val KEY_PLAYER_NAME = "player_name"
         const val KEY_ONBOARDED = "onboarding_done"
+        const val KEY_SKIPPED_UPDATE = "update_skipped"
         const val KEY_VOTE_TIMES = "vote_times"
         const val KEY_PEAK = "peak_today"
         const val DAY_FORMAT = "yyyyMMdd"

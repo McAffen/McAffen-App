@@ -153,7 +153,10 @@ sealed interface DownloadState {
     data class Failed(val message: String) : DownloadState
 }
 
-class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() {
+class McAffenViewModel(
+    private val repository: McAffenRepository,
+    private val settings: SettingsStore,
+) : ViewModel() {
     val players = repository.players
     val voteSites = repository.voteSites
     val status = repository.status
@@ -182,7 +185,10 @@ class McAffenViewModel(private val repository: McAffenRepository) : ViewModel() 
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { repository.latestRelease() }
                 .onSuccess { release ->
-                    if (isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)) {
+                    val skipped = settings.skippedUpdate.value
+                    if (release.tagName != skipped &&
+                        isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)
+                    ) {
                         _update.value = release
                     }
                 }
@@ -239,7 +245,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                McAffenViewModel(repository) as T
+                McAffenViewModel(repository, settings) as T
         },
     )
     val players by vm.players.collectAsStateWithLifecycle(emptyList())
@@ -280,6 +286,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     update?.let { release ->
         val downloading = downloadState is DownloadState.Downloading
         val canInstall = UpdateInstaller.canInstallDirectly(context)
+        val hasApk = !release.assetUrl.isNullOrBlank()
         AlertDialog(
             onDismissRequest = { if (!downloading) vm.dismissUpdate() },
             title = { Text("Update verfügbar 🚀") },
@@ -315,23 +322,38 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                 }
             },
             confirmButton = {
-                when {
-                    downloading -> TextButton(onClick = {}, enabled = false) { Text("Lädt …") }
-                    !canInstall ->
-                        Button(onClick = { UpdateInstaller.openUnknownSourcesSettings(context) }) {
-                            Text("Installation erlauben")
-                        }
-                    else -> Button(onClick = { vm.startUpdate(context) }) { Text("Laden & installieren") }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    when {
+                        downloading -> TextButton(onClick = {}, enabled = false) { Text("Lädt …") }
+                        !hasApk ->
+                            Button(onClick = {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
+                                settings.skipUpdate(release.tagName)
+                                vm.dismissUpdate()
+                            }) { Text("Auf GitHub laden") }
+                        !canInstall ->
+                            Button(onClick = { UpdateInstaller.openUnknownSourcesSettings(context) }) {
+                                Text("Installation erlauben")
+                            }
+                        else -> Button(onClick = { vm.startUpdate(context) }) { Text("Laden & installieren") }
+                    }
+                    if (hasApk && !downloading) {
+                        TextButton(
+                            onClick = {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
+                            },
+                        ) { Text("Release auf GitHub ansehen") }
+                    }
                 }
             },
             dismissButton = {
                 if (!downloading) {
                     TextButton(
                         onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
+                            settings.skipUpdate(release.tagName)
                             vm.dismissUpdate()
                         },
-                    ) { Text("Auf GitHub ansehen") }
+                    ) { Text("Später") }
                 }
             },
         )

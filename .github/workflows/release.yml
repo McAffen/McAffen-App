@@ -21,7 +21,10 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew test lint assembleRelease
+      - name: Determine release tag
+        id: tag
+        run: echo "tag=v1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+      - run: ./gradlew test lint assembleRelease "-PmcaffenTag=${{ steps.tag.outputs.tag }}"
       - name: Sign release APK
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -62,9 +65,6 @@ jobs:
             --out "$signed_apk" \
             "$unsigned_apk"
           "$apksigner" verify "$signed_apk"
-      - name: Create release tag
-        id: tag
-        run: echo "tag=v1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
