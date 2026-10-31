@@ -43,8 +43,8 @@ jobs:
           else
             echo "::warning::Release signing secrets are not configured; generating a temporary signing key."
             key_alias="mcaffen"
-            key_password="$(openssl rand -hex 32)"
             keystore_password="$(openssl rand -hex 32)"
+            key_password="$keystore_password"
             keytool -genkeypair -v \
               -keystore "$keystore" \
               -storepass "$keystore_password" \
