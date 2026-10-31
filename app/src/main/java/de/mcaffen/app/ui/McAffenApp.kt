@@ -1,8 +1,13 @@
 package de.mcaffen.app.ui
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
@@ -33,6 +38,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,6 +50,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
@@ -86,11 +93,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -112,15 +121,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import androidx.core.content.ContextCompat
 import de.mcaffen.app.BuildConfig
 import de.mcaffen.app.R
+import de.mcaffen.app.data.ApkVerification
 import de.mcaffen.app.data.McAffenRepository
 import de.mcaffen.app.data.SettingsStore
+import de.mcaffen.app.data.UpdateCheckScheduler
+import de.mcaffen.app.data.UpdateConfig
 import de.mcaffen.app.data.UpdateInstaller
 import de.mcaffen.app.model.AppRelease
 import de.mcaffen.app.model.PlayerStat
@@ -129,6 +145,7 @@ import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.model.VoteSite
 import de.mcaffen.app.ui.ThemeOptions
 import java.io.File
+import java.io.IOException
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -150,6 +167,8 @@ sealed interface DownloadState {
     data object Idle : DownloadState
     data class Downloading(val progress: Int) : DownloadState
     data class Ready(val apk: File) : DownloadState
+    /** APK heruntergeladen, aber nicht als Update über diese Installation nutzbar. */
+    data class Blocked(val verification: ApkVerification) : DownloadState
     data class Failed(val message: String) : DownloadState
 }
 
@@ -170,6 +189,14 @@ class McAffenViewModel(
     private val _download = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val download = _download.asStateFlow()
 
+    /** Einmalige Snackbar-Meldungen rund um den Update-Check (z. B. offline). */
+    private val _updateNotice = MutableStateFlow<String?>(null)
+    val updateNotice = _updateNotice.asStateFlow()
+
+    fun clearUpdateNotice() {
+        _updateNotice.value = null
+    }
+
     fun refresh() {
         viewModelScope.launch(Dispatchers.IO) {
             _loading.value = true
@@ -181,25 +208,50 @@ class McAffenViewModel(
         }
     }
 
-    fun checkForUpdate() {
+    /**
+     * Prüft GitHub auf ein neueres Release. Automatische Prüfungen (App-Start,
+     * Rückkehr in die App, WorkManager) sind gedrosselt und erfordern, dass der
+     * Nutzer sie in den Einstellungen aktiviert hat. Mit [force] (Button
+     * "Jetzt prüfen") wird immer geprüft und das Ergebnis per Snackbar gemeldet.
+     */
+    fun checkForUpdate(force: Boolean = false) {
+        if (_update.value != null) return
+        if (!force) {
+            if (!settings.updateChecksEnabled.value) return
+            val sinceLast = System.currentTimeMillis() - settings.lastUpdateCheck.value
+            if (sinceLast in 0 until UpdateConfig.MIN_CHECK_INTERVAL_MS) return
+        }
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { repository.latestRelease() }
-                .onSuccess { release ->
-                    val skipped = settings.skippedUpdate.value
-                    if (release.tagName != skipped &&
-                        isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)
-                    ) {
-                        _update.value = release
+            val result = runCatching { repository.latestRelease() }
+            settings.touchUpdateCheck()
+            result.onSuccess { release ->
+                val skipped = settings.skippedUpdate.value
+                val isNewer = UpdateConfig.isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)
+                // Kritische Updates dringen auch an "Später" vorbei.
+                if (release.critical || (isNewer && release.tagName != skipped)) {
+                    _update.value = release
+                }
+            }.onFailure { error ->
+                if (force) {
+                    _updateNotice.value = if (error is IOException) {
+                        "Keine Internetverbindung – Update-Prüfung nicht möglich."
+                    } else {
+                        "Update-Prüfung fehlgeschlagen: ${error.message ?: error::class.simpleName}"
                     }
                 }
+            }
         }
     }
 
     fun dismissUpdate() {
         _update.value = null
+        if (_download.value !is DownloadState.Ready) _download.value = DownloadState.Idle
     }
 
-    /** In-App-Update: lädt die neue APK herunter und startet anschließend den Install-Prompt. */
+    /**
+     * In-App-Update: lädt die neue APK herunter, verifiziert sie (Größe, Paket,
+     * Signatur) und startet anschließend den System-Install-Prompt.
+     */
     fun startUpdate(context: Context) {
         val apkUrl = _update.value?.assetUrl ?: return
         viewModelScope.launch(Dispatchers.IO) {
@@ -211,29 +263,29 @@ class McAffenViewModel(
                 ) { progress ->
                     _download.value = DownloadState.Downloading(progress)
                 }
-            }.onSuccess { apk ->
-                _download.value = DownloadState.Ready(apk)
-            }.onFailure { error ->
-                _download.value = DownloadState.Failed(error.message ?: "Update-Download fehlgeschlagen")
-            }
+            }.fold(
+                onSuccess = { apk ->
+                    val verification = UpdateInstaller.verifyApk(context.applicationContext, apk)
+                    _download.value = if (verification == ApkVerification.Ok) {
+                        DownloadState.Ready(apk)
+                    } else {
+                        DownloadState.Blocked(verification)
+                    }
+                },
+                onFailure = { error ->
+                    _download.value = DownloadState.Failed(
+                        when (error) {
+                            is IOException -> "Keine Internetverbindung – Download wurde abgebrochen."
+                            else -> error.message ?: "Download fehlgeschlagen"
+                        },
+                    )
+                },
+            )
         }
     }
 
     fun resetDownload() {
         _download.value = DownloadState.Idle
-    }
-
-    private fun isNewerVersion(candidate: String, current: String): Boolean {
-        fun parts(value: String) = value.trim().removePrefix("v").split('.')
-            .map { it.takeWhile(Char::isDigit).toIntOrNull() ?: 0 }
-        val newer = parts(candidate)
-        val installed = parts(current)
-        for (index in 0 until maxOf(newer.size, installed.size)) {
-            val candidatePart = newer.getOrElse(index) { 0 }
-            val currentPart = installed.getOrElse(index) { 0 }
-            if (candidatePart != currentPart) return candidatePart > currentPart
-        }
-        return false
     }
 }
 
@@ -254,10 +306,13 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
     val update by vm.update.collectAsStateWithLifecycle()
+    val updateNotice by vm.updateNotice.collectAsStateWithLifecycle()
     val legalCache by vm.legalCache.collectAsStateWithLifecycle(emptyMap())
     val myName by settings.playerName.collectAsStateWithLifecycle()
     val voteTimes by settings.voteTimes.collectAsStateWithLifecycle()
     val onboardingDone by settings.onboardingDone.collectAsStateWithLifecycle()
+    val updateChecksEnabled by settings.updateChecksEnabled.collectAsStateWithLifecycle()
+    val lastUpdateCheck by settings.lastUpdateCheck.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableStateOf(Tab.LEADERBOARD) }
     var isMenuExpanded by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
@@ -265,18 +320,32 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { vm.refresh() }
-    LaunchedEffect(Unit) { vm.checkForUpdate() }
     LaunchedEffect(error) { error?.let { snackbar.showSnackbar(it) } }
+    LaunchedEffect(updateNotice) {
+        updateNotice?.let {
+            snackbar.showSnackbar(it)
+            vm.clearUpdateNotice()
+        }
+    }
+
+    // Update-Prüfung beim Start und optional beim Zurückkehren in die App:
+    // ON_RESUME feuert auch beim ersten Start, das Rate-Limit hält die Frequenz begrenzt.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) vm.checkForUpdate()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
 
     val downloadState by vm.download.collectAsStateWithLifecycle()
     LaunchedEffect(downloadState) {
         when (val state = downloadState) {
             is DownloadState.Ready -> {
+                // APK verifiziert → System-Install-Prompt; Nutzer bestätigt,
+                // Android ersetzt die App und behält alle Daten.
                 UpdateInstaller.launchInstall(context, state.apk)
-                vm.resetDownload()
-            }
-            is DownloadState.Failed -> {
-                snackbar.showSnackbar("Update fehlgeschlagen: ${state.message}")
                 vm.resetDownload()
             }
             else -> {}
@@ -284,78 +353,24 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     }
 
     update?.let { release ->
-        val downloading = downloadState is DownloadState.Downloading
-        val canInstall = UpdateInstaller.canInstallDirectly(context)
-        val hasApk = !release.assetUrl.isNullOrBlank()
-        AlertDialog(
-            onDismissRequest = { if (!downloading) vm.dismissUpdate() },
-            title = { Text("Update verfügbar 🚀") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        (release.name?.takeIf(String::isNotBlank) ?: "Neue Version ${release.tagName}") +
-                            "\n\nDeine Version: ${BuildConfig.VERSION_NAME}. Das Update wird direkt in der App " +
-                            "heruntergeladen und über der installierten Version installiert – " +
-                            "deine Einstellungen bleiben erhalten.",
-                    )
-                    when (val state = downloadState) {
-                        is DownloadState.Downloading -> {
-                            LinearProgressIndicator(
-                                progress = { (state.progress / 100f).coerceIn(0f, 1f) },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Text(
-                                if (state.progress > 0) "Lädt herunter … ${state.progress} %" else "Lädt herunter …",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        else -> {}
-                    }
-                    if (!canInstall) {
-                        Text(
-                            "Einmalig erforderlich: Erlaube der McAffen-App, „Apps aus unbekannten Quellen“ " +
-                                "zu installieren. Danach aktualisiert sich die App direkt selbst.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+        UpdateDialog(
+            release = release,
+            downloadState = downloadState,
+            canInstall = UpdateInstaller.canInstallDirectly(context),
+            onInstall = { vm.startUpdate(context) },
+            onEnableInstalls = { UpdateInstaller.openUnknownSourcesSettings(context) },
+            onRetry = { vm.startUpdate(context) },
+            onOpenGitHub = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl))) },
+            onOpenGitHubAndSkip = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
+                settings.skipUpdate(release.tagName)
+                vm.dismissUpdate()
             },
-            confirmButton = {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    when {
-                        downloading -> TextButton(onClick = {}, enabled = false) { Text("Lädt …") }
-                        !hasApk ->
-                            Button(onClick = {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
-                                settings.skipUpdate(release.tagName)
-                                vm.dismissUpdate()
-                            }) { Text("Auf GitHub laden") }
-                        !canInstall ->
-                            Button(onClick = { UpdateInstaller.openUnknownSourcesSettings(context) }) {
-                                Text("Installation erlauben")
-                            }
-                        else -> Button(onClick = { vm.startUpdate(context) }) { Text("Laden & installieren") }
-                    }
-                    if (hasApk && !downloading) {
-                        TextButton(
-                            onClick = {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
-                            },
-                        ) { Text("Release auf GitHub ansehen") }
-                    }
-                }
+            onLater = {
+                settings.skipUpdate(release.tagName)
+                vm.dismissUpdate()
             },
-            dismissButton = {
-                if (!downloading) {
-                    TextButton(
-                        onClick = {
-                            settings.skipUpdate(release.tagName)
-                            vm.dismissUpdate()
-                        },
-                    ) { Text("Später") }
-                }
-            },
+            onDismiss = vm::dismissUpdate,
         )
     }
 
@@ -509,6 +524,13 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         onPlayerNameChange = settings::setPlayerName,
                         legalLastSync = legalCache.values.maxOfOrNull { it.updatedAt } ?: 0L,
                         legalCached = legalCache.isNotEmpty(),
+                        updateChecksEnabled = updateChecksEnabled,
+                        onUpdateChecksChange = { enabled ->
+                            settings.setUpdateChecksEnabled(enabled)
+                            UpdateCheckScheduler.update(context)
+                        },
+                        onCheckForUpdate = { vm.checkForUpdate(force = true) },
+                        lastUpdateCheck = lastUpdateCheck,
                         modifier = Modifier.padding(padding),
                     )
                 }
@@ -527,9 +549,231 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     }
 }
 
+/** Moderne Update-Oberfläche: Versionsübergang, Release-Notes, Downloadgröße und Fortschritt. */
 @Composable
-private fun LoadingState(modifier: Modifier = Modifier) {
-    Column(
+private fun UpdateDialog(
+    release: AppRelease,
+    downloadState: DownloadState,
+    canInstall: Boolean,
+    onInstall: () -> Unit,
+    onEnableInstalls: () -> Unit,
+    onRetry: () -> Unit,
+    onOpenGitHub: () -> Unit,
+    onOpenGitHubAndSkip: () -> Unit,
+    onLater: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val state = downloadState
+    val downloading = state is DownloadState.Downloading
+    val blocked = state as? DownloadState.Blocked
+    val failed = state as? DownloadState.Failed
+    val hasApk = !release.assetUrl.isNullOrBlank()
+    // Kritische Updates (Marker in den Release-Notes) dürfen nicht weggeklickt werden.
+    val dismissible = !release.critical && !downloading
+    AlertDialog(
+        onDismissRequest = { if (dismissible) onDismiss() },
+        title = {
+            Text(
+                when {
+                    release.critical -> "Update erforderlich ⚠️"
+                    blocked != null -> "Update blockiert"
+                    failed != null -> "Update fehlgeschlagen"
+                    else -> "Update verfügbar 🚀"
+                },
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    VersionBadge("Aktuell", BuildConfig.VERSION_NAME)
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "aktualisiert auf",
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    VersionBadge(
+                        "Neu",
+                        release.tagName.removePrefix("v"),
+                        highlighted = true,
+                    )
+                }
+                if (release.critical) {
+                    Text(
+                        "Dies ist ein kritisches Update und muss installiert werden.",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                updateNotesText(release.notes)?.let { notes ->
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 160.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text("Was ist neu?", style = MaterialTheme.typography.labelLarge)
+                        Text(notes, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                Text(
+                    "Das Update wird direkt in der App heruntergeladen und über der " +
+                        "installierten Version installiert – deine Daten und Einstellungen " +
+                        "bleiben erhalten.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                formatBytes(release.assetSize)?.let { size ->
+                    Text(
+                        "Downloadgröße: $size",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                when (state) {
+                    is DownloadState.Downloading -> {
+                        if (state.progress >= 0) {
+                            LinearProgressIndicator(
+                                progress = { (state.progress / 100f).coerceIn(0f, 1f) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                "Lädt herunter … ${state.progress}%",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        } else {
+                            LinearProgressIndicator(Modifier.fillMaxWidth())
+                            Text("Lädt herunter …", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    is DownloadState.Failed -> Text(
+                        "Fehler: ${state.message}\nDu kannst es erneut versuchen.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    is DownloadState.Blocked -> Text(
+                        when (state.verification) {
+                            ApkVerification.Corrupt ->
+                                "Die heruntergeladene Datei ist unvollständig oder beschädigt. " +
+                                    "Versuche es lieber direkt über GitHub."
+                            ApkVerification.Incompatible ->
+                                "Diese APK passt nicht als Update über die installierte Version " +
+                                    "(Paket-ID oder Version). Lade sie über GitHub …"
+                            else ->
+                                "Die APK ist mit einem anderen Schlüssel signiert als die " +
+                                    "installierte App. Android erlaubt die Überinstallation dann " +
+                                    "nicht. Öffne das Release auf GitHub, um sie zu laden."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    else -> {}
+                }
+                if (!canInstall && state is DownloadState.Idle && hasApk) {
+                    Text(
+                        "Einmalig erforderlich: Erlaube der McAffen-App, „Apps aus unbekannten " +
+                            "Quellen“ zu installieren. Danach aktualisiert sich die App direkt selbst.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                when {
+                    downloading -> TextButton(onClick = {}, enabled = false) { Text("Lädt …") }
+                    failed != null || blocked?.verification == ApkVerification.Corrupt ->
+                        Button(onClick = onRetry) { Text("Erneut versuchen") }
+                    !hasApk || (blocked != null && blocked.verification != ApkVerification.Corrupt) ->
+                        Button(onClick = onOpenGitHubAndSkip) { Text("Auf GitHub laden") }
+                    !canInstall -> Button(onClick = onEnableInstalls) { Text("Installation erlauben") }
+                    else -> Button(onClick = onInstall) { Text("Jetzt aktualisieren") }
+                }
+                if (hasApk && !downloading) {
+                    TextButton(onClick = onOpenGitHub) { Text("Release auf GitHub ansehen") }
+                }
+            }
+        },
+        dismissButton = {
+            if (dismissible) {
+                TextButton(onClick = onLater) { Text("Später") }
+            }
+        },
+    )
+}
+
+/** Kleiner Versions-Chip: Label darüber, kompakte Versionsnummer in der Mitte. */
+@Composable
+private fun VersionBadge(label: String, version: String, highlighted: Boolean = false) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = if (highlighted) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+    ) {
+        Column(
+            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(version, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+/** Release-Notes leserlich aufbereiten: Markdown-Bilder/Links/Hervorhebungen entfernen. */
+private fun updateNotesText(notes: String?): String? {
+    if (notes.isNullOrBlank()) return null
+    return notes
+        .replace(Regex(Regex.escape(UpdateConfig.CRITICAL_MARKER), RegexOption.IGNORE_CASE), "")
+        .replace(Regex("!\\[[^\\]]*\\]\\([^)]*\\)"), "") // Markdown-Bilder
+        .replace(Regex("\\[([^\\]]+)\\]\\([^)]*\\)"), "$1") // [Link](url) → Text
+        .replace("**", "")
+        .split('\n')
+        .joinToString("\n") { line -> line.trimStart('#').trim() }
+        .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+        .takeIf(String::isNotBlank)
+}
+
+/** Bytes leserlich formatieren (z. B. "8,4 MB") für die Downloadgröße-Anzeige. */
+private fun formatBytes(bytes: Long?): String? {
+    if (bytes == null || bytes <= 0) return null
+    val megabytes = bytes / 1024.0 / 1024.0
+    return when {
+        megabytes >= 1.0 -> String.format(Locale.getDefault(), "%.1f MB", megabytes)
+        else -> String.format(Locale.getDefault(), "%.0f KB", bytes / 1024.0)
+    }
+}
+
+/** Freundliche Darstellung, wie lange die letzte Update-Prüfung her ist. */
+private fun lastCheckText(timestamp: Long): String {
+    if (timestamp <= 0L) return "Noch nie"
+    val minutes = (System.currentTimeMillis() - timestamp) / 60_000
+    return when {
+        minutes <= 0 -> "gerade eben"
+        minutes == 1L -> "vor 1 Minute"
+        minutes < 60 -> "vor $minutes Minuten"
+        minutes < 120 -> "vor 1 Stunde"
+        minutes < 60 * 24 -> "vor ${minutes / 60} Stunden"
+        minutes < 60 * 48 -> "vor 1 Tag"
+        else -> SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale.getDefault()).format(Date(timestamp)) + " Uhr"
+    }
+}
+
+@Composable
+private fun LoadingState(modifier: Modifier = Modifier) {    Column(
         modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1474,6 +1718,10 @@ private fun SettingsScreen(
     onPlayerNameChange: (String) -> Unit,
     legalLastSync: Long,
     legalCached: Boolean,
+    updateChecksEnabled: Boolean,
+    onUpdateChecksChange: (Boolean) -> Unit,
+    onCheckForUpdate: () -> Unit,
+    lastUpdateCheck: Long,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -1532,6 +1780,57 @@ private fun SettingsScreen(
                 Text("Version: $version")
                 Text("Server: mcaffen.de")
                 Text("API: https://mcaffen.de/api")
+            }
+        }
+        Card {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Updates", style = MaterialTheme.typography.titleMedium)
+                val notifPermissionLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission(),
+                ) { }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Automatisch nach Updates suchen", Modifier.weight(1f))
+                    Switch(
+                        checked = updateChecksEnabled,
+                        onCheckedChange = { enabled ->
+                            // Android 13+: Benachrichtigungserlaubnis nachfragen,
+                            // sonst wird das gefundene Hintergrund-Update unsichtbar.
+                            if (enabled && Build.VERSION.SDK_INT >= 33 &&
+                                ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.POST_NOTIFICATIONS,
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                            onUpdateChecksChange(enabled)
+                        },
+                    )
+                }
+                Text(
+                    "Prüft beim Start, beim Zurückkehren in die App und im Hintergrund " +
+                        "(ca. alle 12 Stunden) auf GitHub. Funde erscheinen direkt als " +
+                        "Dialog oder als Benachrichtigung.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        "Zuletzt geprüft: ${lastCheckText(lastUpdateCheck)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onCheckForUpdate) { Text("Jetzt prüfen") }
+                }
             }
         }
         Card {

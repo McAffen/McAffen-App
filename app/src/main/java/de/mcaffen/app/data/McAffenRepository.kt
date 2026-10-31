@@ -6,9 +6,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import de.mcaffen.app.model.AppRelease
 import de.mcaffen.app.model.ServerInfo
 import de.mcaffen.app.model.ServerStatus
-import de.mcaffen.app.network.GitHubReleaseApi
 import de.mcaffen.app.network.McAffenApi
-import de.mcaffen.app.network.RepoInfo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -23,7 +21,6 @@ data class LegalRaw(val title: String?, val html: String?)
 
 class McAffenRepository(
     private val api: McAffenApi,
-    private val releaseApi: GitHubReleaseApi,
     private val dao: CacheDao,
     private val client: OkHttpClient,
     moshi: Moshi,
@@ -53,11 +50,7 @@ class McAffenRepository(
         Types.newParameterizedType(List::class.java, ServerInfo::class.java),
     )
 
-    suspend fun latestRelease(): AppRelease {
-        val release = releaseApi.getLatestRelease(RepoInfo.OWNER, RepoInfo.REPO)
-        val asset = release.assets.firstOrNull { it.browser_download_url.endsWith(".apk", ignoreCase = true) }
-        return AppRelease(release.tag_name, release.html_url, release.name, asset?.browser_download_url)
-    }
+    suspend fun latestRelease(): AppRelease = UpdateChecker.fetchLatest()
 
     /**
      * lädt die APK eines GitHub-Releases herunter und liefert die fertige Datei

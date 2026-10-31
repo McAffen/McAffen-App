@@ -80,6 +80,9 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
+    // Hintergrund-Update-Prüfung (WorkManager): alle 12 h, nur mit Internet.
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+
     // AsyncImage für Minecraft-Avatare (mc-heads.net, wie auch auf der Website).
     implementation("io.coil-kt:coil-compose:2.7.0")
 

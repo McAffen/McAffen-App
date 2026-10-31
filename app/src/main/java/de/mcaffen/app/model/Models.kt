@@ -33,11 +33,17 @@ data class ServerStatus(
     val servers: List<ServerInfo> = emptyList(),
 )
 
-// Data model for app releases, extended to hold the download URL of the APK asset if available
+// Data model for app releases
 data class AppRelease(
     val tagName: String,
     val htmlUrl: String,
     val name: String?,
     // URL of the APK asset on GitHub releases; may be null if no asset found
     val assetUrl: String? = null,
+    // Release-Notes (Beschreibung des Releases im Markdown-Rohformat)
+    val notes: String? = null,
+    // APK-Downloadgröße in Bytes, wie von GitHub angegeben (null = unbekannt)
+    val assetSize: Long? = null,
+    // Pflicht-Update: Notes enthalten den [kritisch]-Marker, "Später" wird ausgeblendet
+    val critical: Boolean = false,
 )

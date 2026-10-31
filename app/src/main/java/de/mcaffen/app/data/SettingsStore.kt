@@ -19,6 +19,12 @@ class SettingsStore(context: Context) {
     /** Update-Version, die der Nutzer mit "Später" verworfen hat (wird nicht neu gefragt). */
     val skippedUpdate = MutableStateFlow(prefs.getString(KEY_SKIPPED_UPDATE, null))
 
+    /** Automatische Update-Prüfungen an/aus (Nutzerauswahl in den Einstellungen). */
+    val updateChecksEnabled = MutableStateFlow(prefs.getBoolean(KEY_UPDATE_CHECKS, true))
+
+    /** Zeitstempel der letzten Update-Prüfung – begrenzt die API-Anfragen (Rate-Limit). */
+    val lastUpdateCheck = MutableStateFlow(prefs.getLong(KEY_LAST_UPDATE_CHECK, 0L))
+
     /** Wann wurde welche Vote-Seite zuletzt vom Nutzer geöffnet (2-stündige/24-h-Rhythmus der Vote-Seiten). */
     val voteTimes = MutableStateFlow(readVoteTimes())
 
@@ -45,6 +51,18 @@ class SettingsStore(context: Context) {
     fun skipUpdate(tag: String) {
         prefs.edit().putString(KEY_SKIPPED_UPDATE, tag).apply()
         skippedUpdate.value = tag
+    }
+
+    fun setUpdateChecksEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_UPDATE_CHECKS, value).apply()
+        updateChecksEnabled.value = value
+    }
+
+    /** Merkt sich den Zeitpunkt der letzten Update-Prüfung (für das Rate-Limit). */
+    fun touchUpdateCheck() {
+        val now = System.currentTimeMillis()
+        prefs.edit().putLong(KEY_LAST_UPDATE_CHECK, now).apply()
+        lastUpdateCheck.value = now
     }
 
     fun voteTime(site: String): Long = voteTimes.value[site] ?: 0L
@@ -87,6 +105,8 @@ class SettingsStore(context: Context) {
         const val KEY_PLAYER_NAME = "player_name"
         const val KEY_ONBOARDED = "onboarding_done"
         const val KEY_SKIPPED_UPDATE = "update_skipped"
+        const val KEY_UPDATE_CHECKS = "update_checks_enabled"
+        const val KEY_LAST_UPDATE_CHECK = "update_last_check"
         const val KEY_VOTE_TIMES = "vote_times"
         const val KEY_PEAK = "peak_today"
         const val DAY_FORMAT = "yyyyMMdd"
