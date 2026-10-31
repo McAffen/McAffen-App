@@ -18,4 +18,7 @@ Die API-Endpunkte sind derzeit gemäß der vorgegebenen Annahme modelliert. Fall
 ./gradlew test lint assembleDebug
 ```
 
-Das Release-Workflow-Artefakt ist aktuell ein nicht signiertes APK. Für Play-Store-Verteilung muss ein Keystore über GitHub Secrets eingebunden werden.
+Der Release-Workflow veröffentlicht ein signiertes, installierbares APK. Für stabile Updates sollte ein Keystore über die GitHub Secrets
+`RELEASE_KEYSTORE_BASE64`, `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` und `RELEASE_KEY_PASSWORD` hinterlegt werden. Ohne diese Secrets
+erzeugt der Workflow als Fallback einen temporären Schlüssel; die APK ist installierbar, aber spätere Releases können dann nicht als Update
+über die vorherige Installation installiert werden.

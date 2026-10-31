@@ -23,6 +23,46 @@ jobs:
           cache: gradle
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew test lint assembleRelease
+      - name: Sign release APK
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+          signed_apk="app/build/outputs/apk/release/McAffen-release.apk"
+          keystore="${RUNNER_TEMP}/mcaffen-release.keystore"
+
+          if [[ -n "${RELEASE_KEYSTORE_BASE64:-}" ]]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+            key_alias="${RELEASE_KEY_ALIAS:?RELEASE_KEY_ALIAS secret is required}"
+            key_password="${RELEASE_KEY_PASSWORD:?RELEASE_KEY_PASSWORD secret is required}"
+            keystore_password="${RELEASE_KEYSTORE_PASSWORD:?RELEASE_KEYSTORE_PASSWORD secret is required}"
+          else
+            echo "::warning::Release signing secrets are not configured; generating a temporary signing key."
+            key_alias="mcaffen"
+            key_password="$(openssl rand -hex 32)"
+            keystore_password="$(openssl rand -hex 32)"
+            keytool -genkeypair -v \
+              -keystore "$keystore" \
+              -storepass "$keystore_password" \
+              -alias "$key_alias" \
+              -keypass "$key_password" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=McAffen, OU=Android, O=McAffen, L=Berlin, S=Berlin, C=DE"
+          fi
+
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          "$apksigner" sign \
+            --ks "$keystore" \
+            --ks-key-alias "$key_alias" \
+            --ks-pass "pass:$keystore_password" \
+            --key-pass "pass:$key_password" \
+            --out "$signed_apk" \
+            "$unsigned_apk"
+          "$apksigner" verify "$signed_apk"
       - name: Create release tag
         id: tag
         run: echo "tag=v1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
@@ -33,4 +73,4 @@ jobs:
           name: Release ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
-          files: app/build/outputs/apk/release/app-release-unsigned.apk
+          files: app/build/outputs/apk/release/McAffen-release.apk
