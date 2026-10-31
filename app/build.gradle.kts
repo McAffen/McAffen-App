@@ -46,7 +46,6 @@ android {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
-    androidTestImplementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.0")
@@ -65,11 +64,12 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // Tooling for Compose previews in the IDE.
     debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // NOTE: Test dependencies (junit, espresso, kotlinx-coroutines-test) are
+    // intentionally omitted: the project currently has no unit or
+    // instrumentation tests. Lint resolves the test compile classpaths and
+    // failed on the CI runner when these unused artifacts were declared.
+    // Re-add them together with real test sources.
 }

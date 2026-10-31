@@ -4,3 +4,6 @@
 local.properties
 .idea/
 *.iml
+
+# Release signing material must never be committed.
+/signing/
