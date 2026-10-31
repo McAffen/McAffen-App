@@ -15,3 +15,14 @@ interface McAffenApi {
     @GET("status")
     suspend fun getServerStatus(): ServerStatus
 }
+
+interface GitHubReleaseApi {
+    @GET("repos/McAffen/McAffen-App/releases/latest")
+    suspend fun getLatestRelease(): GitHubReleaseResponse
+}
+
+data class GitHubReleaseResponse(
+    @com.squareup.moshi.Json(name = "tag_name") val tagName: String,
+    @com.squareup.moshi.Json(name = "html_url") val htmlUrl: String,
+    val name: String?,
+)

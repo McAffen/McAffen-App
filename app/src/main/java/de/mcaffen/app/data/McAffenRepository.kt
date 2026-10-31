@@ -1,7 +1,9 @@
 package de.mcaffen.app.data
 
 import de.mcaffen.app.model.ServerStatus
+import de.mcaffen.app.model.AppRelease
 import de.mcaffen.app.network.McAffenApi
+import de.mcaffen.app.network.GitHubReleaseApi
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.async
@@ -9,11 +11,17 @@ import kotlinx.coroutines.coroutineScope
 
 class McAffenRepository(
     private val api: McAffenApi,
+    private val releaseApi: GitHubReleaseApi,
     private val dao: CacheDao,
 ) {
     val players = dao.players().map { items -> items.map(PlayerEntity::toModel) }
     val voteSites = dao.voteSites().map { items -> items.map(VoteSiteEntity::toModel) }
     val status = dao.status().map { it?.toModel() }
+
+    suspend fun latestRelease(): AppRelease {
+        val release = releaseApi.getLatestRelease()
+        return AppRelease(release.tagName, release.htmlUrl, release.name)
+    }
 
     suspend fun refresh() = coroutineScope {
         val leaderboard = async { api.getLeaderboard() }
