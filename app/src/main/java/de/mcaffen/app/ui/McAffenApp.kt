@@ -20,6 +20,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -477,12 +479,18 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                 targetState = selectedTab,
                 transitionSpec = {
                     val forward = targetState.ordinal >= initialState.ordinal
-                    (slideInHorizontally(tween(durationMillis = 240)) { fraction ->
-                        if (forward) fraction / 3 else -fraction / 3
-                    } + fadeIn(tween(durationMillis = 240))) togetherWith
-                        slideOutHorizontally(tween(durationMillis = 180)) { fraction ->
-                            if (forward) -fraction / 3 else fraction / 3
-                        } + fadeOut(tween(durationMillis = 180))
+                    (slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { fraction ->
+                        if (forward) fraction / 2 else -fraction / 2
+                    } + fadeIn(tween(durationMillis = 260)) + scaleIn(
+                        initialScale = 0.96f,
+                        animationSpec = tween(durationMillis = 260),
+                    )) togetherWith
+                        (slideOutHorizontally(tween(durationMillis = 200)) { fraction ->
+                            if (forward) -fraction / 2 else fraction / 2
+                        } + fadeOut(tween(durationMillis = 200)) + scaleOut(
+                            targetScale = 0.96f,
+                            animationSpec = tween(durationMillis = 200),
+                        ))
                 },
                 label = "tabContent",
             ) { tab ->
