@@ -361,9 +361,9 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
             release = release,
             downloadState = downloadState,
             canInstall = UpdateInstaller.canInstallDirectly(context),
-            onInstall = { vm.startUpdate(context) },
-            onEnableInstalls = { UpdateInstaller.openUnknownSourcesSettings(context) },
-            onRetry = { vm.startUpdate(context) },
+            onInstall = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl))) },
+            onEnableInstalls = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl))) },
+            onRetry = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl))) },
             onOpenGitHub = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl))) },
             onOpenGitHubAndSkip = {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl)))
