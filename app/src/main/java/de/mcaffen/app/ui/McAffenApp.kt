@@ -229,8 +229,10 @@ class McAffenViewModel(
             result.onSuccess { release ->
                 val skipped = settings.skippedUpdate.value
                 val isNewer = UpdateConfig.isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)
-                // Kritische Updates dringen auch an "Später" vorbei.
-                if (release.critical || (isNewer && release.tagName != skipped)) {
+                // Bei manueller Prüfung (force) wird ein zuvor übersprungenes
+                // Update erneut angeboten; kritische Updates dringen immer durch.
+                val ignoreSkip = force
+                if (release.critical || (isNewer && (ignoreSkip || release.tagName != skipped))) {
                     _update.value = release
                 }
             }.onFailure { error ->
