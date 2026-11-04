@@ -16,6 +16,7 @@ object ThemeOptions {
     const val COLOR_GREEN = "GREEN"
     const val COLOR_BLUE = "BLUE"
     const val COLOR_PURPLE = "PURPLE"
+    const val COLOR_ORANGE = "ORANGE"
 
     val darkModes = listOf(
         DARK_SYSTEM to "System",
@@ -27,6 +28,7 @@ object ThemeOptions {
         COLOR_GREEN to "McAffen Grün",
         COLOR_BLUE to "Blau",
         COLOR_PURPLE to "Violett",
+        COLOR_ORANGE to "Orange",
     )
 }
 
@@ -136,6 +138,40 @@ private val PurpleDarkColorScheme = McAffenDarkColorScheme.copy(
     onSurfaceVariant = Color(0xFFCBC4CF),
 )
 
+private val OrangeLightColorScheme = McAffenLightColorScheme.copy(
+    primary = Color(0xFFE67E22),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFDDB8),
+    onPrimaryContainer = Color(0xFF2B1700),
+    secondary = Color(0xFFB76E1F),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFFFE0C2),
+    onSecondaryContainer = Color(0xFF2A1600),
+    background = Color(0xFFFFFBF7),
+    onBackground = Color(0xFF201A14),
+    surface = Color(0xFFFFFBF7),
+    onSurface = Color(0xFF201A14),
+    surfaceVariant = Color(0xFFEDE1D5),
+    onSurfaceVariant = Color(0xFF50453B),
+)
+
+private val OrangeDarkColorScheme = McAffenDarkColorScheme.copy(
+    primary = Color(0xFFFFB77C),
+    onPrimary = Color(0xFF4A2800),
+    primaryContainer = Color(0xFF6A3C00),
+    onPrimaryContainer = Color(0xFFFFDDB8),
+    secondary = Color(0xFFFFC98A),
+    onSecondary = Color(0xFF4A2800),
+    secondaryContainer = Color(0xFF6A3C00),
+    onSecondaryContainer = Color(0xFFFFE0C2),
+    background = Color(0xFF1A1410),
+    onBackground = Color(0xFFEDE1D5),
+    surface = Color(0xFF1A1410),
+    onSurface = Color(0xFFEDE1D5),
+    surfaceVariant = Color(0xFF50453B),
+    onSurfaceVariant = Color(0xFFD4C4B5),
+)
+
 @Composable
 fun McAffenTheme(
     color: String = ThemeOptions.COLOR_GREEN,
@@ -150,6 +186,7 @@ fun McAffenTheme(
     val scheme: ColorScheme = when (color) {
         ThemeOptions.COLOR_BLUE -> if (dark) BlueDarkColorScheme else BlueLightColorScheme
         ThemeOptions.COLOR_PURPLE -> if (dark) PurpleDarkColorScheme else PurpleLightColorScheme
+        ThemeOptions.COLOR_ORANGE -> if (dark) OrangeDarkColorScheme else OrangeLightColorScheme
         else -> if (dark) McAffenDarkColorScheme else McAffenLightColorScheme
     }
     MaterialTheme(colorScheme = scheme, content = content)
