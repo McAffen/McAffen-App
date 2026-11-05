@@ -14,6 +14,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -30,6 +31,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -111,7 +113,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -528,6 +535,12 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         onDarkModeChange = settings::setDarkMode,
                         color = settings.color.collectAsStateWithLifecycle().value,
                         onColorChange = settings::setColor,
+                        animationsEnabled = settings.animationsEnabled.collectAsStateWithLifecycle().value,
+                        onAnimationsChange = settings::setAnimationsEnabled,
+                        hapticsEnabled = settings.hapticsEnabled.collectAsStateWithLifecycle().value,
+                        onHapticsChange = settings::setHapticsEnabled,
+                        compactMode = settings.compactMode.collectAsStateWithLifecycle().value,
+                        onCompactModeChange = settings::setCompactMode,
                         onRefresh = vm::refresh,
                         onOpenLegal = { legalKey = it },
                         playerName = myName,
@@ -549,7 +562,8 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     }
 
     if (!onboardingDone) {
-        OnboardingDialog(
+        WelcomeScreen(
+            initialName = myName,
             onConfirm = { name ->
                 if (name.isNotBlank()) settings.setPlayerName(name.trim())
                 settings.setOnboardingDone()
@@ -799,6 +813,157 @@ private fun LoadingState(modifier: Modifier = Modifier) {    Column(
     ) {
         CircularProgressIndicator()
         Text("Lade McAffen-Daten …", Modifier.padding(top = 12.dp))
+    }
+}
+
+/** Vollbild-Willkommensscreen beim Erststart: Features, Animationen, Namenseingabe. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WelcomeScreen(
+    initialName: String,
+    onConfirm: (String) -> Unit,
+    onSkip: () -> Unit,
+) {
+    var name by remember { mutableStateOf(initialName) }
+    val infinite = rememberInfiniteTransition(label = "welcome")
+    val pulse by infinite.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse),
+        label = "pulse",
+    )
+    val rotation by infinite.animateFloat(
+        initialValue = -6f,
+        targetValue = 6f,
+        animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
+        label = "rot",
+    )
+    val visible = remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible.value = true }
+    val scale by animateFloatAsState(
+        targetValue = if (visible.value) 1f else 0.6f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "scale",
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (visible.value) 1f else 0f,
+        animationSpec = tween(600),
+        label = "alpha",
+    )
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.surface,
+                    ),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Spacer(Modifier.height(24.dp))
+            Box(
+                Modifier
+                    .size(120.dp)
+                    .scale(scale * pulse)
+                    .rotate(rotation)
+                    .alpha(alpha),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    tonalElevation = 8.dp,
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.mcaffen_logo),
+                        contentDescription = "McAffen",
+                        modifier = Modifier.size(96.dp).padding(12.dp),
+                    )
+                }
+            }
+            Text(
+                "Willkommen bei McAffen 🐵",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.alpha(alpha),
+            )
+            Text(
+                "Deine inoffizielle App für den Minecraft-Server mcaffen.de",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.alpha(alpha),
+            )
+
+            // Feature-Highlights
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                WelcomeFeatureCard("🏆", "Rangliste", "Sieh deine Punkte & Platzierung")
+                WelcomeFeatureCard("🗳️", "Voten", "Täglich voten & Punkte sammeln")
+                WelcomeFeatureCard("📊", "Status", "Server- & Spielerinfos live")
+                WelcomeFeatureCard("🎨", "Themes", "Farben & Dark-Mode frei wählen")
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Wie heißt du in Minecraft?", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Dann siehst du sofort deinen Rang und musst beim Voten nie wieder tippen.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Dein Minecraft-Name") },
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { onConfirm(name) },
+                            enabled = name.isNotBlank(),
+                            modifier = Modifier.weight(1f),
+                        ) { Text("Los geht's 🚀") }
+                        OutlinedButton(onClick = onSkip, modifier = Modifier.weight(1f)) { Text("Später") }
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun WelcomeFeatureCard(emoji: String, title: String, subtitle: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth(0.47f),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(emoji, style = MaterialTheme.typography.headlineSmall)
+            Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -1731,6 +1896,12 @@ private fun SettingsScreen(
     onDarkModeChange: (String) -> Unit,
     color: String,
     onColorChange: (String) -> Unit,
+    animationsEnabled: Boolean,
+    onAnimationsChange: (Boolean) -> Unit,
+    hapticsEnabled: Boolean,
+    onHapticsChange: (Boolean) -> Unit,
+    compactMode: Boolean,
+    onCompactModeChange: (Boolean) -> Unit,
     onRefresh: () -> Unit,
     onOpenLegal: (String) -> Unit,
     playerName: String,
@@ -1776,6 +1947,45 @@ private fun SettingsScreen(
                         )
                     }
                 }
+            }
+        }
+        Card {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Effekte & Komfort", style = MaterialTheme.typography.titleMedium)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Animationen", Modifier.weight(1f))
+                    Switch(checked = animationsEnabled, onCheckedChange = onAnimationsChange)
+                }
+                Text(
+                    "Übergänge, Pulse und Effekte in der App.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Haptisches Feedback", Modifier.weight(1f))
+                    Switch(checked = hapticsEnabled, onCheckedChange = onHapticsChange)
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Kompakte Ansicht", Modifier.weight(1f))
+                    Switch(checked = compactMode, onCheckedChange = onCompactModeChange)
+                }
+                Text(
+                    "Weniger Abstände und kleinere Karten.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         Card {

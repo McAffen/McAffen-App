@@ -17,6 +17,8 @@ object ThemeOptions {
     const val COLOR_BLUE = "BLUE"
     const val COLOR_PURPLE = "PURPLE"
     const val COLOR_ORANGE = "ORANGE"
+    const val COLOR_RED = "RED"
+    const val COLOR_TEAL = "TEAL"
 
     val darkModes = listOf(
         DARK_SYSTEM to "System",
@@ -29,6 +31,8 @@ object ThemeOptions {
         COLOR_BLUE to "Blau",
         COLOR_PURPLE to "Violett",
         COLOR_ORANGE to "Orange",
+        COLOR_RED to "Rot",
+        COLOR_TEAL to "Türkis",
     )
 }
 
@@ -172,6 +176,71 @@ private val OrangeDarkColorScheme = McAffenDarkColorScheme.copy(
     onSurfaceVariant = Color(0xFFD4C4B5),
 )
 
+private val RedLightColorScheme = McAffenLightColorScheme.copy(
+    primary = Color(0xFFC0392B),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFDAD6),
+    onPrimaryContainer = Color(0xFF410002),
+    secondary = Color(0xFF9C27B0),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFF3D9FF),
+    onSecondaryContainer = Color(0xFF32004A),
+    background = Color(0xFFFFFBF9),
+    onBackground = Color(0xFF201A17),
+    surface = Color(0xFFFFFBF9),
+    onSurface = Color(0xFF201A17),
+    surfaceVariant = Color(0xFFEDE0DC),
+    onSurfaceVariant = Color(0xFF504441),
+)
+private val RedDarkColorScheme = McAffenDarkColorScheme.copy(
+    primary = Color(0xFFFFB4AB),
+    onPrimary = Color(0xFF690005),
+    primaryContainer = Color(0xFF93000A),
+    onPrimaryContainer = Color(0xFFFFDAD6),
+    secondary = Color(0xFFE2B4FF),
+    onSecondary = Color(0xFF4A006E),
+    secondaryContainer = Color(0xFF650097),
+    onSecondaryContainer = Color(0xFFF3D9FF),
+    background = Color(0xFF1A1110),
+    onBackground = Color(0xFFEDE0DC),
+    surface = Color(0xFF1A1110),
+    onSurface = Color(0xFFEDE0DC),
+    surfaceVariant = Color(0xFF504441),
+    onSurfaceVariant = Color(0xFFD4C3BF),
+)
+private val TealLightColorScheme = McAffenLightColorScheme.copy(
+    primary = Color(0xFF00897B),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFB2DFDB),
+    onPrimaryContainer = Color(0xFF00201D),
+    secondary = Color(0xFF00ACC1),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFB2EBF2),
+    onSecondaryContainer = Color(0xFF00363A),
+    background = Color(0xFFF5FFFD),
+    onBackground = Color(0xFF191C1B),
+    surface = Color(0xFFF5FFFD),
+    onSurface = Color(0xFF191C1B),
+    surfaceVariant = Color(0xFFDBE5E2),
+    onSurfaceVariant = Color(0xFF3F4946),
+)
+private val TealDarkColorScheme = McAffenDarkColorScheme.copy(
+    primary = Color(0xFF80CBC4),
+    onPrimary = Color(0xFF003733),
+    primaryContainer = Color(0xFF005048),
+    onPrimaryContainer = Color(0xFFB2DFDB),
+    secondary = Color(0xFF80DEEA),
+    onSecondary = Color(0xFF00363A),
+    secondaryContainer = Color(0xFF004F55),
+    onSecondaryContainer = Color(0xFFB2EBF2),
+    background = Color(0xFF101413),
+    onBackground = Color(0xFFDCE5E2),
+    surface = Color(0xFF101413),
+    onSurface = Color(0xFFDCE5E2),
+    surfaceVariant = Color(0xFF3F4946),
+    onSurfaceVariant = Color(0xFFBFC9C5),
+)
+
 @Composable
 fun McAffenTheme(
     color: String = ThemeOptions.COLOR_GREEN,
@@ -187,6 +256,8 @@ fun McAffenTheme(
         ThemeOptions.COLOR_BLUE -> if (dark) BlueDarkColorScheme else BlueLightColorScheme
         ThemeOptions.COLOR_PURPLE -> if (dark) PurpleDarkColorScheme else PurpleLightColorScheme
         ThemeOptions.COLOR_ORANGE -> if (dark) OrangeDarkColorScheme else OrangeLightColorScheme
+         ThemeOptions.COLOR_RED -> if (dark) RedDarkColorScheme else RedLightColorScheme
+         ThemeOptions.COLOR_TEAL -> if (dark) TealDarkColorScheme else TealLightColorScheme
         else -> if (dark) McAffenDarkColorScheme else McAffenLightColorScheme
     }
     MaterialTheme(colorScheme = scheme, content = content)

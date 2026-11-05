@@ -15,6 +15,9 @@ class SettingsStore(context: Context) {
     val color = MutableStateFlow(prefs.getString(KEY_COLOR, null) ?: "GREEN")
     val playerName = MutableStateFlow(prefs.getString(KEY_PLAYER_NAME, "").orEmpty())
     val onboardingDone = MutableStateFlow(prefs.getBoolean(KEY_ONBOARDED, false))
+    val animationsEnabled = MutableStateFlow(prefs.getBoolean(KEY_ANIMATIONS, true))
+    val hapticsEnabled = MutableStateFlow(prefs.getBoolean(KEY_HAPTICS, true))
+    val compactMode = MutableStateFlow(prefs.getBoolean(KEY_COMPACT, false))
 
     /** Update-Version, die der Nutzer mit "Später" verworfen hat (wird nicht neu gefragt). */
     val skippedUpdate = MutableStateFlow(prefs.getString(KEY_SKIPPED_UPDATE, null))
@@ -46,6 +49,21 @@ class SettingsStore(context: Context) {
     fun setOnboardingDone() {
         prefs.edit().putBoolean(KEY_ONBOARDED, true).apply()
         onboardingDone.value = true
+    }
+
+    fun setAnimationsEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_ANIMATIONS, value).apply()
+        animationsEnabled.value = value
+    }
+
+    fun setHapticsEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_HAPTICS, value).apply()
+        hapticsEnabled.value = value
+    }
+
+    fun setCompactMode(value: Boolean) {
+        prefs.edit().putBoolean(KEY_COMPACT, value).apply()
+        compactMode.value = value
     }
 
     fun skipUpdate(tag: String) {
@@ -104,6 +122,9 @@ class SettingsStore(context: Context) {
         const val KEY_COLOR = "color"
         const val KEY_PLAYER_NAME = "player_name"
         const val KEY_ONBOARDED = "onboarding_done"
+        const val KEY_ANIMATIONS = "animations_enabled"
+        const val KEY_HAPTICS = "haptics_enabled"
+        const val KEY_COMPACT = "compact_mode"
         const val KEY_SKIPPED_UPDATE = "update_skipped"
         const val KEY_UPDATE_CHECKS = "update_checks_enabled"
         const val KEY_LAST_UPDATE_CHECK = "update_last_check"
