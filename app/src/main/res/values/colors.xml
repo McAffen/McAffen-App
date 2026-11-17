@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Markenfarben (Pipelines für den Startbildschirm und die Icon-Hintergründe) -->
+    <color name="mc_brand_green">#12401F</color>
+    <color name="mc_brand_green_deep">#0A2A14</color>
+    <color name="mc_brand_amber">#FFB300</color>
+    <color name="mc_brand_surface">#FAFDF6</color>
+</resources>

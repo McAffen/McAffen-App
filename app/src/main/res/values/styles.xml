@@ -1,6 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.McAffen" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#6750A4</item>
+        <item name="android:colorAccent">#4C8C3F</item>
+        <item name="android:windowBackground">@color/mc_brand_surface</item>
+    </style>
+
+    <!-- Startbildschirm: Markenfarbe, zentriertes Logo (Android 12+ mit Icon-Animation). -->
+    <style name="Theme.McAffen.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/mc_brand_green_deep</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="windowSplashScreenAnimationDuration">600</item>
+        <item name="postSplashScreenTheme">@style/Theme.McAffen</item>
     </style>
 </resources>

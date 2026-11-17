@@ -51,6 +51,23 @@ class SettingsStore(context: Context) {
         onboardingDone.value = true
     }
 
+    /** Onboarding erneut zeigen (Einstellungen → „Einführung noch einmal ansehen“). */
+    fun replayOnboarding() {
+        prefs.edit().putBoolean(KEY_ONBOARDED, false).apply()
+        onboardingDone.value = false
+    }
+
+    /** Bester bisher erreichter Rang – für die „neuer Rekord“-Feier im Profil. */
+    fun bestRank(): Int = prefs.getInt(KEY_BEST_RANK, 0)
+
+    fun updateBestRank(rank: Int) {
+        if (rank <= 0) return
+        val current = bestRank()
+        if (current == 0 || rank < current) {
+            prefs.edit().putInt(KEY_BEST_RANK, rank).apply()
+        }
+    }
+
     fun setAnimationsEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_ANIMATIONS, value).apply()
         animationsEnabled.value = value
@@ -130,6 +147,7 @@ class SettingsStore(context: Context) {
         const val KEY_LAST_UPDATE_CHECK = "update_last_check"
         const val KEY_VOTE_TIMES = "vote_times"
         const val KEY_PEAK = "peak_today"
+        const val KEY_BEST_RANK = "best_rank"
         const val DAY_FORMAT = "yyyyMMdd"
     }
 }

@@ -1,12 +1,21 @@
 package de.mcaffen.app.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 object ThemeOptions {
     const val DARK_SYSTEM = "SYSTEM"
@@ -34,10 +43,50 @@ object ThemeOptions {
         COLOR_RED to "Rot",
         COLOR_TEAL to "Türkis",
     )
+
+    /** Akzentfarbe einer Farbwelt – für die Vorschau-Punkte in den Einstellungen. */
+    fun previewColor(color: String): Color = when (color) {
+        COLOR_BLUE -> Color(0xFF2F6FB0)
+        COLOR_PURPLE -> Color(0xFF6750A4)
+        COLOR_ORANGE -> Color(0xFFC96A12)
+        COLOR_RED -> Color(0xFFB3312A)
+        COLOR_TEAL -> Color(0xFF00796B)
+        else -> Color(0xFF3F7F32)
+    }
+}
+
+/**
+ * Markenfarben, die das Material-Farbschema nicht abdeckt:
+ * Verläufe, Podium-Medaillen (Gold/Silber/Bronze) und Trendfarben.
+ */
+data class McAffenColors(
+    val brandGradient: List<Color>,
+    val heroGradient: List<Color>,
+    val gold: Color = Color(0xFFFFC14D),
+    val silver: Color = Color(0xFFCBD5E1),
+    val bronze: Color = Color(0xFFE39A5C),
+    val positive: Color,
+    val negative: Color,
+    val glow: Color,
+)
+
+private val LocalMcAffenColors = staticCompositionLocalOf {
+    McAffenColors(
+        brandGradient = listOf(Color(0xFF3F7F32), Color(0xFF2E7D32)),
+        heroGradient = listOf(Color(0xFFD7F0CE), Color(0xFFFBFDF8)),
+        positive = Color(0xFF1F8A44),
+        negative = Color(0xFFC62828),
+        glow = Color(0x2E3F7F32),
+    )
+}
+
+object McAffenBrand {
+    val colors: McAffenColors
+        @Composable get() = LocalMcAffenColors.current
 }
 
 private val McAffenLightColorScheme = lightColorScheme(
-    primary = Color(0xFF4C8C3F),
+    primary = Color(0xFF3F7F32),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFD7F0CE),
     onPrimaryContainer = Color(0xFF0C2B08),
@@ -45,201 +94,258 @@ private val McAffenLightColorScheme = lightColorScheme(
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFC7EBEB),
     onSecondaryContainer = Color(0xFF002020),
-    background = Color(0xFFFAFDF6),
-    onBackground = Color(0xFF1A1C18),
-    surface = Color(0xFFFAFDF6),
-    onSurface = Color(0xFF1A1C18),
-    surfaceVariant = Color(0xFFE0E4DA),
+    tertiary = Color(0xFFC98A16),
+    onTertiary = Color.White,
+    background = Color(0xFFF7FAF3),
+    onBackground = Color(0xFF171B15),
+    surface = Color(0xFFFBFDF8),
+    onSurface = Color(0xFF171B15),
+    surfaceVariant = Color(0xFFE4E9DE),
     onSurfaceVariant = Color(0xFF43483F),
-    error = Color(0xFFB00020),
+    surfaceContainer = Color(0xFFF0F4EC),
+    surfaceContainerHigh = Color(0xFFEAF0E4),
+    surfaceContainerHighest = Color(0xFFE4E9DE),
+    surfaceContainerLow = Color(0xFFF5F9F1),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    outline = Color(0xFF8A9184),
+    outlineVariant = Color(0xFFC9D1C3),
+    error = Color(0xFFB3261E),
     onError = Color.White,
 )
 
 private val McAffenDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF86C774),
-    onPrimary = Color(0xFF14461A),
+    primary = Color(0xFF8FD47C),
+    onPrimary = Color(0xFF0C2B08),
     primaryContainer = Color(0xFF2E6329),
     onPrimaryContainer = Color(0xFFD7F0CE),
     secondary = Color(0xFF87D0D0),
     onSecondary = Color(0xFF003737),
     secondaryContainer = Color(0xFF205050),
     onSecondaryContainer = Color(0xFFC7EBEB),
-    background = Color(0xFF121410),
-    onBackground = Color(0xFFE2E3DC),
-    surface = Color(0xFF121410),
-    onSurface = Color(0xFFE2E3DC),
-    surfaceVariant = Color(0xFF43483F),
+    tertiary = Color(0xFFFFCB6B),
+    onTertiary = Color(0xFF3D2A00),
+    background = Color(0xFF0E120D),
+    onBackground = Color(0xFFE3E6DE),
+    surface = Color(0xFF131712),
+    onSurface = Color(0xFFE3E6DE),
+    surfaceVariant = Color(0xFF3F453C),
     onSurfaceVariant = Color(0xFFC3C8BD),
+    surfaceContainer = Color(0xFF1A1F19),
+    surfaceContainerHigh = Color(0xFF212620),
+    surfaceContainerHighest = Color(0xFF2A3028),
+    surfaceContainerLow = Color(0xFF161B15),
+    surfaceContainerLowest = Color(0xFF0B0E0A),
+    outline = Color(0xFF8D9487),
+    outlineVariant = Color(0xFF3F453C),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
 )
 
-private val BlueLightColorScheme = McAffenLightColorScheme.copy(
-    primary = Color(0xFF3A6EA5),
-    onPrimary = Color.White,
+private val BlueLight = McAffenLightColorScheme.copy(
+    primary = Color(0xFF2F6FB0),
     primaryContainer = Color(0xFFD3E4FF),
     onPrimaryContainer = Color(0xFF001A33),
     secondary = Color(0xFF3A8CA5),
-    onSecondary = Color.White,
     secondaryContainer = Color(0xFFC7E8F0),
     onSecondaryContainer = Color(0xFF002028),
-    background = Color(0xFFF8FBFF),
-    onBackground = Color(0xFF181C20),
-    surface = Color(0xFFF8FBFF),
-    onSurface = Color(0xFF181C20),
+    background = Color(0xFFF6FAFF),
+    surface = Color(0xFFFBFDFF),
+    surfaceContainer = Color(0xFFEDF3FB),
+    surfaceContainerHigh = Color(0xFFE7EEF8),
+    surfaceContainerHighest = Color(0xFFDFE7F2),
+    surfaceContainerLow = Color(0xFFF2F7FD),
     surfaceVariant = Color(0xFFDFE3EB),
     onSurfaceVariant = Color(0xFF43474E),
 )
 
-private val BlueDarkColorScheme = McAffenDarkColorScheme.copy(
-    primary = Color(0xFFA2C9FF),
-    onPrimary = Color(0xFF003059),
+private val BlueDark = McAffenDarkColorScheme.copy(
+    primary = Color(0xFF9CC7FF),
     primaryContainer = Color(0xFF27496F),
-    onPrimaryContainer = Color(0xFFD3E4FF),
+    onPrimary = Color(0xFF00315C),
     secondary = Color(0xFF93D0E2),
-    onSecondary = Color(0xFF003038),
     secondaryContainer = Color(0xFF1F4E58),
-    onSecondaryContainer = Color(0xFFC7E8F0),
-    background = Color(0xFF101418),
-    onBackground = Color(0xFFE2E5EA),
-    surface = Color(0xFF101418),
-    onSurface = Color(0xFFE2E5EA),
-    surfaceVariant = Color(0xFF43474E),
+    background = Color(0xFF0C1116),
+    surface = Color(0xFF11161C),
+    surfaceContainer = Color(0xFF171D24),
+    surfaceContainerHigh = Color(0xFF1E242C),
+    surfaceContainerHighest = Color(0xFF262D36),
+    surfaceContainerLow = Color(0xFF141A20),
+    surfaceVariant = Color(0xFF3A4149),
     onSurfaceVariant = Color(0xFFC3C7CF),
 )
 
-private val PurpleLightColorScheme = McAffenLightColorScheme.copy(
+private val PurpleLight = McAffenLightColorScheme.copy(
     primary = Color(0xFF6750A4),
-    onPrimary = Color.White,
     primaryContainer = Color(0xFFEADDFF),
     onPrimaryContainer = Color(0xFF21005D),
     secondary = Color(0xFF9A50A4),
-    onSecondary = Color.White,
     secondaryContainer = Color(0xFFEFC7F0),
     onSecondaryContainer = Color(0xFF2B0020),
-    background = Color(0xFFFCF9FE),
-    onBackground = Color(0xFF1C1B1E),
-    surface = Color(0xFFFCF9FE),
-    onSurface = Color(0xFF1C1B1E),
+    background = Color(0xFFFAF8FF),
+    surface = Color(0xFFFDFAFF),
+    surfaceContainer = Color(0xFFF4EFFB),
+    surfaceContainerHigh = Color(0xFFEFE8F8),
+    surfaceContainerHighest = Color(0xFFE7E0F1),
+    surfaceContainerLow = Color(0xFFF8F3FD),
     surfaceVariant = Color(0xFFE7E0EC),
     onSurfaceVariant = Color(0xFF49454E),
 )
 
-private val PurpleDarkColorScheme = McAffenDarkColorScheme.copy(
+private val PurpleDark = McAffenDarkColorScheme.copy(
     primary = Color(0xFFD0BCFF),
-    onPrimary = Color(0xFF381E72),
     primaryContainer = Color(0xFF4F378B),
-    onPrimaryContainer = Color(0xFFEADDFF),
+    onPrimary = Color(0xFF381E72),
     secondary = Color(0xFFD8A8DC),
-    onSecondary = Color(0xFF33163B),
     secondaryContainer = Color(0xFF493253),
-    onSecondaryContainer = Color(0xFFEFC7F0),
-    background = Color(0xFF141218),
-    onBackground = Color(0xFFE6E0E9),
+    background = Color(0xFF0F0D13),
     surface = Color(0xFF141218),
-    onSurface = Color(0xFFE6E0E9),
-    surfaceVariant = Color(0xFF49454E),
+    surfaceContainer = Color(0xFF1B181F),
+    surfaceContainerHigh = Color(0xFF221E27),
+    surfaceContainerHighest = Color(0xFF2B2731),
+    surfaceContainerLow = Color(0xFF18151B),
+    surfaceVariant = Color(0xFF443F4D),
     onSurfaceVariant = Color(0xFFCBC4CF),
 )
 
-private val OrangeLightColorScheme = McAffenLightColorScheme.copy(
-    primary = Color(0xFFE67E22),
-    onPrimary = Color.White,
+private val OrangeLight = McAffenLightColorScheme.copy(
+    primary = Color(0xFFC96A12),
     primaryContainer = Color(0xFFFFDDB8),
     onPrimaryContainer = Color(0xFF2B1700),
     secondary = Color(0xFFB76E1F),
-    onSecondary = Color.White,
     secondaryContainer = Color(0xFFFFE0C2),
     onSecondaryContainer = Color(0xFF2A1600),
-    background = Color(0xFFFFFBF7),
-    onBackground = Color(0xFF201A14),
-    surface = Color(0xFFFFFBF7),
-    onSurface = Color(0xFF201A14),
+    background = Color(0xFFFFF9F2),
+    surface = Color(0xFFFFFBF6),
+    surfaceContainer = Color(0xFFFCF1E3),
+    surfaceContainerHigh = Color(0xFFF8EADC),
+    surfaceContainerHighest = Color(0xFFF1E2D2),
+    surfaceContainerLow = Color(0xFFFEF6ED),
     surfaceVariant = Color(0xFFEDE1D5),
     onSurfaceVariant = Color(0xFF50453B),
 )
 
-private val OrangeDarkColorScheme = McAffenDarkColorScheme.copy(
+private val OrangeDark = McAffenDarkColorScheme.copy(
     primary = Color(0xFFFFB77C),
-    onPrimary = Color(0xFF4A2800),
     primaryContainer = Color(0xFF6A3C00),
-    onPrimaryContainer = Color(0xFFFFDDB8),
+    onPrimary = Color(0xFF4A2800),
     secondary = Color(0xFFFFC98A),
-    onSecondary = Color(0xFF4A2800),
     secondaryContainer = Color(0xFF6A3C00),
-    onSecondaryContainer = Color(0xFFFFE0C2),
-    background = Color(0xFF1A1410),
-    onBackground = Color(0xFFEDE1D5),
+    background = Color(0xFF130F0B),
     surface = Color(0xFF1A1410),
-    onSurface = Color(0xFFEDE1D5),
-    surfaceVariant = Color(0xFF50453B),
+    surfaceContainer = Color(0xFF211A14),
+    surfaceContainerHigh = Color(0xFF29211A),
+    surfaceContainerHighest = Color(0xFF322920),
+    surfaceContainerLow = Color(0xFF1D1712),
+    surfaceVariant = Color(0xFF4C423A),
     onSurfaceVariant = Color(0xFFD4C4B5),
 )
 
-private val RedLightColorScheme = McAffenLightColorScheme.copy(
-    primary = Color(0xFFC0392B),
-    onPrimary = Color.White,
+private val RedLight = McAffenLightColorScheme.copy(
+    primary = Color(0xFFB3312A),
     primaryContainer = Color(0xFFFFDAD6),
     onPrimaryContainer = Color(0xFF410002),
     secondary = Color(0xFF9C27B0),
-    onSecondary = Color.White,
     secondaryContainer = Color(0xFFF3D9FF),
     onSecondaryContainer = Color(0xFF32004A),
-    background = Color(0xFFFFFBF9),
-    onBackground = Color(0xFF201A17),
+    background = Color(0xFFFFF8F6),
     surface = Color(0xFFFFFBF9),
-    onSurface = Color(0xFF201A17),
+    surfaceContainer = Color(0xFFFBEFEC),
+    surfaceContainerHigh = Color(0xFFF6E8E5),
+    surfaceContainerHighest = Color(0xFFEFE0DC),
+    surfaceContainerLow = Color(0xFFFDF3F0),
     surfaceVariant = Color(0xFFEDE0DC),
     onSurfaceVariant = Color(0xFF504441),
 )
-private val RedDarkColorScheme = McAffenDarkColorScheme.copy(
+
+private val RedDark = McAffenDarkColorScheme.copy(
     primary = Color(0xFFFFB4AB),
-    onPrimary = Color(0xFF690005),
     primaryContainer = Color(0xFF93000A),
-    onPrimaryContainer = Color(0xFFFFDAD6),
+    onPrimary = Color(0xFF690005),
     secondary = Color(0xFFE2B4FF),
-    onSecondary = Color(0xFF4A006E),
     secondaryContainer = Color(0xFF650097),
-    onSecondaryContainer = Color(0xFFF3D9FF),
-    background = Color(0xFF1A1110),
-    onBackground = Color(0xFFEDE0DC),
+    background = Color(0xFF120D0C),
     surface = Color(0xFF1A1110),
-    onSurface = Color(0xFFEDE0DC),
-    surfaceVariant = Color(0xFF504441),
+    surfaceContainer = Color(0xFF211715),
+    surfaceContainerHigh = Color(0xFF291E1C),
+    surfaceContainerHighest = Color(0xFF332725),
+    surfaceContainerLow = Color(0xFF1D1413),
+    surfaceVariant = Color(0xFF4B3F3D),
     onSurfaceVariant = Color(0xFFD4C3BF),
 )
-private val TealLightColorScheme = McAffenLightColorScheme.copy(
-    primary = Color(0xFF00897B),
-    onPrimary = Color.White,
+
+private val TealLight = McAffenLightColorScheme.copy(
+    primary = Color(0xFF00796B),
     primaryContainer = Color(0xFFB2DFDB),
     onPrimaryContainer = Color(0xFF00201D),
     secondary = Color(0xFF00ACC1),
-    onSecondary = Color.White,
     secondaryContainer = Color(0xFFB2EBF2),
     onSecondaryContainer = Color(0xFF00363A),
-    background = Color(0xFFF5FFFD),
-    onBackground = Color(0xFF191C1B),
-    surface = Color(0xFFF5FFFD),
-    onSurface = Color(0xFF191C1B),
+    background = Color(0xFFF3FDFB),
+    surface = Color(0xFFF8FFFD),
+    surfaceContainer = Color(0xFFE9F5F2),
+    surfaceContainerHigh = Color(0xFFE2EFEC),
+    surfaceContainerHighest = Color(0xFFDAE8E5),
+    surfaceContainerLow = Color(0xFFEFFAF7),
     surfaceVariant = Color(0xFFDBE5E2),
     onSurfaceVariant = Color(0xFF3F4946),
 )
-private val TealDarkColorScheme = McAffenDarkColorScheme.copy(
+
+private val TealDark = McAffenDarkColorScheme.copy(
     primary = Color(0xFF80CBC4),
-    onPrimary = Color(0xFF003733),
     primaryContainer = Color(0xFF005048),
-    onPrimaryContainer = Color(0xFFB2DFDB),
+    onPrimary = Color(0xFF003733),
     secondary = Color(0xFF80DEEA),
-    onSecondary = Color(0xFF00363A),
     secondaryContainer = Color(0xFF004F55),
-    onSecondaryContainer = Color(0xFFB2EBF2),
-    background = Color(0xFF101413),
-    onBackground = Color(0xFFDCE5E2),
+    background = Color(0xFF0B1110),
     surface = Color(0xFF101413),
-    onSurface = Color(0xFFDCE5E2),
-    surfaceVariant = Color(0xFF3F4946),
+    surfaceContainer = Color(0xFF161B1A),
+    surfaceContainerHigh = Color(0xFF1D2322),
+    surfaceContainerHighest = Color(0xFF252C2A),
+    surfaceContainerLow = Color(0xFF131817),
+    surfaceVariant = Color(0xFF3B4543),
     onSurfaceVariant = Color(0xFFBFC9C5),
 )
+
+/** Eigene Typografie: kräftige, kompakte Überschriften für einen App-Look. */
+private val McAffenTypography = Typography().let { base ->
+    base.copy(
+        displaySmall = base.displaySmall.copy(fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp),
+        headlineLarge = base.headlineLarge.copy(fontWeight = FontWeight.Black, letterSpacing = (-0.6).sp),
+        headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.4).sp),
+        headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
+        titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Bold),
+        titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+        labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        labelMedium = base.labelMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.3.sp),
+        labelSmall = base.labelSmall.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.sp),
+    )
+}
+
+/** Ziffern mit fester Breite für Ranglisten, Punkte und Countdowns. */
+val NumericStyle: TextStyle = TextStyle(
+    fontFeatureSettings = "tnum",
+    fontWeight = FontWeight.Bold,
+)
+
+private val McAffenShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp),
+)
+
+/** Mischt zwei Farben linear (t = 0 → a, t = 1 → b). */
+fun blend(a: Color, b: Color, t: Float): Color {
+    val f = t.coerceIn(0f, 1f)
+    return Color(
+        red = a.red * (1 - f) + b.red * f,
+        green = a.green * (1 - f) + b.green * f,
+        blue = a.blue * (1 - f) + b.blue * f,
+        alpha = a.alpha * (1 - f) + b.alpha * f,
+    )
+}
 
 @Composable
 fun McAffenTheme(
@@ -253,12 +359,31 @@ fun McAffenTheme(
         else -> isSystemInDarkTheme()
     }
     val scheme: ColorScheme = when (color) {
-        ThemeOptions.COLOR_BLUE -> if (dark) BlueDarkColorScheme else BlueLightColorScheme
-        ThemeOptions.COLOR_PURPLE -> if (dark) PurpleDarkColorScheme else PurpleLightColorScheme
-        ThemeOptions.COLOR_ORANGE -> if (dark) OrangeDarkColorScheme else OrangeLightColorScheme
-         ThemeOptions.COLOR_RED -> if (dark) RedDarkColorScheme else RedLightColorScheme
-         ThemeOptions.COLOR_TEAL -> if (dark) TealDarkColorScheme else TealLightColorScheme
+        ThemeOptions.COLOR_BLUE -> if (dark) BlueDark else BlueLight
+        ThemeOptions.COLOR_PURPLE -> if (dark) PurpleDark else PurpleLight
+        ThemeOptions.COLOR_ORANGE -> if (dark) OrangeDark else OrangeLight
+        ThemeOptions.COLOR_RED -> if (dark) RedDark else RedLight
+        ThemeOptions.COLOR_TEAL -> if (dark) TealDark else TealLight
         else -> if (dark) McAffenDarkColorScheme else McAffenLightColorScheme
     }
-    MaterialTheme(colorScheme = scheme, content = content)
+    val brand = scheme.primary
+    val extra = McAffenColors(
+        brandGradient = listOf(brand, blend(brand, scheme.secondary, 0.55f)),
+        heroGradient = if (dark) {
+            listOf(blend(scheme.primaryContainer, Color.Black, 0.30f), scheme.surfaceContainerLow)
+        } else {
+            listOf(blend(scheme.primaryContainer, Color.White, 0.20f), scheme.surface)
+        },
+        positive = if (dark) Color(0xFF6FD68C) else Color(0xFF1F8A44),
+        negative = if (dark) Color(0xFFFF9C99) else Color(0xFFC62828),
+        glow = brand.copy(alpha = if (dark) 0.35f else 0.18f),
+    )
+    CompositionLocalProvider(LocalMcAffenColors provides extra) {
+        MaterialTheme(
+            colorScheme = scheme,
+            typography = McAffenTypography,
+            shapes = McAffenShapes,
+            content = content,
+        )
+    }
 }
