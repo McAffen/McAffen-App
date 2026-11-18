@@ -20,6 +20,16 @@ jobs:
     # macOS-Runner sind nötig, weil Xcode nur dort läuft.
     runs-on: macos-14
     steps:
+      # Erster Schritt: belegt, dass der Runner gestartet ist und welche
+      # Werkzeuge da sind. Wenn dieser Schritt fehlt, wurde der Job nie
+      # zugeteilt – dann liegt es am Runner/Billing, nicht am Code.
+      - name: Runner prüfen
+        run: |
+          echo "Runner: $RUNNER_OS $RUNNER_ARCH"
+          sw_vers
+          xcodebuild -version
+          swift --version
+          which xcodegen || true
       - uses: actions/checkout@v4
 
       - name: JDK 17
@@ -35,7 +45,7 @@ jobs:
         run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
 
       - name: XcodeGen
-        run: brew install xcodegen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
 
       - name: Projekt erzeugen
         working-directory: ios
