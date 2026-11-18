@@ -68,14 +68,18 @@ class McAffenRepository(
         val leaderboard = async { runCatching { api.getLeaderboard() } }
         val serverStatus = async { runCatching { api.getServerStatus() } }
 
-        leaderboard.await().onSuccess { entries ->
-            val oldScores = dao.currentPlayers().associate { it.name to it.score }
-            val mapped = entries
+        leaderboard.await().onSuccess { response ->
+            val entries = response.list
                 .filter { it.name.isNotBlank() }
-                .map { entry ->
-                    val score = entry.points.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
-                    PlayerEntity(entry.name, score, oldScores[entry.name]?.takeIf { it != score })
-                }
+                .sortedByDescending { it.points }
+            val oldScores = dao.currentPlayers().associate { it.name to it.score }
+            val mapped = entries.map { entry ->
+                val score = entry.points.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+                PlayerEntity(entry.name, score, oldScores[entry.name]?.takeIf { it != score })
+            }
+            // Eine leere Rangliste (z. B. Server gerade zurückgesetzt) darf den
+            // letzten Stand nicht löschen – aber wenn der Server antwortet, wird
+            // die Liste vollständig ersetzt, damit keine alten Plätze stehen bleiben.
             if (mapped.isNotEmpty()) dao.savePlayers(mapped)
         }
 

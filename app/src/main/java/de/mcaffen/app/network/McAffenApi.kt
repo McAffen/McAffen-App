@@ -4,18 +4,24 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 /**
- * Rohformat eines Ranglisten-Eintrags von `api/web.php?p=/leaderboard`.
- * Je nach Modus heißt der Wert `value` (ELO) oder `score` – beides wird akzeptiert.
+ * Antwort von `api/web.php?p=/ndu/top&sort=<wert>` – die einzige funktionierende
+ * Rangliste der Website (die alten Pfade `/leaderboard`, `/top` liefern 404).
+ * `sort` gibt der Server zurück; `value` ist die Zahl passend zum Sortierfeld.
  */
+data class LeaderboardResponse(
+    val enabled: Boolean = false,
+    val sort: String? = null,
+    val diff: String? = null,
+    val list: List<LeaderboardEntry> = emptyList(),
+)
+
+/** Ein Platz der Rangliste. `skin` ist ein Textur-Hash (nur auf der Website genutzt). */
 data class LeaderboardEntry(
     val name: String = "",
     val value: Long? = null,
-    val score: Long? = null,
-    val elo: Long? = null,
+    val skin: String? = null,
 ) {
-    /** Punktestand in der Einheit des gewählten Modus (ELO, Stunden, Level, Siege, Geld). */
-    val points: Long
-        get() = value ?: score ?: elo ?: 0L
+    val points: Long get() = value ?: 0L
 }
 
 /**
@@ -70,11 +76,14 @@ data class RawPlayerVote(
  * (`/rangliste`, `/voten`, `/status`) geben inzwischen HTML zurück.
  */
 interface McAffenApi {
-    /** Rangliste; Modus: global, survival, skyblock, bedwars, minigames, citybuild. */
+    /**
+     * Rangliste des NDU-Servers. `sort`: waves, kills, games, coins.
+     * `diff` (optional): easy, normal, hardcore.
+     */
     @GET("web.php")
     suspend fun getLeaderboard(
-        @Query("p") path: String = "/leaderboard?mode=global&period=season&limit=100",
-    ): List<LeaderboardEntry>
+        @Query("p") path: String = "/ndu/top&sort=waves",
+    ): LeaderboardResponse
 
     /** Serverseitiges Netzwerk-Status-Objekt inkl. Serverliste. */
     @GET("web.php")
