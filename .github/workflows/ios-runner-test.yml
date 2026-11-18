@@ -1,0 +1,20 @@
+name: iOS Build
+
+# Test: prüft, ob dieses Repository überhaupt einen macOS-Runner bekommt.
+# Wenn dieser Lauf ebenfalls sofort "cancelled" ist, liegt es am Konto
+# (Billing/Runner-Freigabe) und nicht an der Konfiguration.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ios-runner-test.yml"
+
+jobs:
+  probe:
+    runs-on: macos-14
+    steps:
+      - name: macOS-Version
+        run: sw_vers
+      - name: Xcode
+        run: xcodebuild -version
