@@ -28,8 +28,9 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 | `RELEASE_KEY_PASSWORD` | Passwort aus `signing/key-password.txt` |
 
 Die `.base64`-Datei kann beim Einfügen mit Zeilenumbrüchen übernommen werden. Der
-Release-Workflow normalisiert echte bzw. als `\n` kopierte Umbrüche und entfernt
-versehentlich mitkopierte `RELEASE_KEYSTORE_BASE64=`-Metadaten vor dem Dekodieren.
+Release-Workflow normalisiert echte bzw. als `\n` kopierte Umbrüche, entfernt
+versehentlich mitkopierte `RELEASE_KEYSTORE_BASE64=`-Metadaten und ergänzt fehlendes
+Base64-Padding vor dem Dekodieren.
 
 ### 2. Keystore sicher aufbewahren
 
