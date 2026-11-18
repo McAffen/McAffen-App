@@ -37,6 +37,13 @@ object UpdateConfig {
      * Update angeboten wird, wenn es wirklich eine höhere Version gibt.
      */
     fun isNewerVersion(candidate: String, current: String): Boolean {
+        // Datumsversionen wie 1.261118.1 sind nicht numerisch vergleichbar
+        // (261118 > 0.35, obwohl der Build neuer ist). Deshalb: Sobald ein
+        // Name nicht das klassische X.Y.Z-Schema hat, zählt er als neuer –
+        // das eigentliche Update entscheidet ohnehin der versionCode.
+        if (!CLASSIC_VERSION.matches(candidate.trim()) || !CLASSIC_VERSION.matches(current.trim())) {
+            return candidate.trim() != current.trim()
+        }
         fun parts(value: String) = value.trim().removePrefix("v").split('.')
             .map { it.takeWhile(Char::isDigit).toIntOrNull() ?: 0 }
         val newer = parts(candidate)
@@ -48,4 +55,7 @@ object UpdateConfig {
         }
         return false
     }
+
+    /** Klassisches Schema v1.0.35 – nur damit ist ein numerischer Vergleich sinnvoll. */
+    private val CLASSIC_VERSION = Regex("^v?[0-9]{1,2}\\.[0-9]{1,3}\\.[0-9]{1,3}$")
 }

@@ -1,5 +1,8 @@
 import java.util.Properties
 
+/** Höchster bereits veröffentlichter versionCode (v1.0.35 = 1.000.035) – nie unterschreiten. */
+val MIN_VERSION_CODE = 1_000_035
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -23,10 +26,13 @@ android {
     val paddedParts = versionParts.take(3) + List(maxOf(0, 3 - versionParts.size)) { 0 }
     // Patch-Anteil darf bis 999.999 gehen (Datumsversionen wie 1.251118.1234),
     // damit jede Veröffentlichung einen höheren versionCode hat als die vorherige.
-    val releaseVersionCode: Int =
+    val computedVersionCode: Int =
         paddedParts[0].coerceIn(0, 99) * 10_000_000 +
             paddedParts[1].coerceIn(0, 99) * 100_000 +
             paddedParts[2].coerceIn(0, 99_999)
+    // Untergrenze: Die bereits verteilten Releases bis v1.0.35 hatten versionCode
+    // 1.000.035. Ein kleinerer Code würde von Android als Update abgelehnt.
+    val releaseVersionCode: Int = maxOf(computedVersionCode, MIN_VERSION_CODE)
 
     defaultConfig {
         applicationId = "de.mcaffen.app"
