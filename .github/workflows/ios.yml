@@ -9,6 +9,12 @@ on:
       - "shared/**"
       - ".github/workflows/ios.yml"
 
+# Kein Abbruch laufender Builds: macOS-Läufe dauern lange, und ein
+# "cancelled" verschluckt das Ergebnis, statt einen Fehler zu zeigen.
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     # macOS-Runner sind nötig, weil Xcode nur dort läuft.
