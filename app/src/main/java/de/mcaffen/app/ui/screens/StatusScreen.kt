@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Lan
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -44,8 +48,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +63,9 @@ import de.mcaffen.app.model.ServerInfo
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.ui.McAffenBrand
 import de.mcaffen.app.ui.cleanColorCodes
+import de.mcaffen.app.data.LanBridge
 import de.mcaffen.app.ui.components.AnimatedBackdrop
+import de.mcaffen.app.ui.components.SoftDivider
 import de.mcaffen.app.ui.components.GlowHalo
 import de.mcaffen.app.ui.components.LiveDot
 import de.mcaffen.app.ui.components.PillChip
@@ -91,6 +100,7 @@ internal fun StatusScreen(
         label = "onlinePlayers",
     )
     val onlineServers = status?.servers?.count { it.online } ?: 0
+    val haptic = LocalHapticFeedback.current
 
     Box(modifier.fillMaxSize()) {
         AnimatedBackdrop(enabled = animationsEnabled)
@@ -144,6 +154,14 @@ internal fun StatusScreen(
                     }
                     item("ip") {
                         Reveal(visible = animationsEnabled) { ServerAddressCard() }
+                    }
+                    item("lan") {
+                        Reveal(visible = animationsEnabled, fromScale = 0.97f) {
+                            LanCard(
+                                animationsEnabled = animationsEnabled,
+                                onStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                            )
+                        }
                     }
                     item("community") {
                         Reveal(visible = animationsEnabled) {
@@ -363,6 +381,40 @@ private fun ServerAddressCard() {
                 Text(if (copied) " Kopiert" else " Kopieren", fontWeight = FontWeight.SemiBold)
             }
         }
+        SoftDivider()
+        // Bedrock: gleicher Server, andere Edition – Adresse direkt daneben.
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    "Bedrock-Edition · Handy, PC, Konsole",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "${LanBridge.HOST}:${LanBridge.PORT}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+            FilledTonalButton(
+                onClick = {
+                    clipboard.setText(AnnotatedString("${LanBridge.HOST}:${LanBridge.PORT}"))
+                    copied = true
+                },
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                Icon(
+                    if (copied) Icons.Default.Refresh else Icons.Default.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(if (copied) " Kopiert" else " Kopieren", fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 
@@ -429,5 +481,130 @@ private fun MessageCard(message: String) {
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+    }
+}
+
+/**
+ * LAN-Welt für Konsolen, direkt im Status: zeigt die Adressen dieses Geräts und
+ * erklärt in vier Schritten, wie bedrock.mcaffen.de auf PS5, Switch & Co.
+ * als LAN-Welt erscheint.
+ */
+@Composable
+private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
+    val context = LocalContext.current
+    val localIp = remember { LanBridge.localAddress(context) }
+    val onWifi = remember { LanBridge.isOnWifi(context) }
+    var expanded by remember { mutableStateOf(false) }
+
+    SoftCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        contentPadding = 16.dp,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        SectionTitle("LAN-Welt für Konsolen") {
+            PillChip(
+                text = if (onWifi) "Im WLAN" else "Kein WLAN",
+                color = if (onWifi) McAffenBrand.colors.positive else McAffenBrand.colors.negative,
+            )
+        }
+        Text(
+            "PS5, Switch und Xbox finden Welten nur im eigenen Netz. Mit einer " +
+                "Weiterleitung im WLAN erscheint bedrock.mcaffen.de dort als LAN-Welt.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            AddressPill(
+                label = "Ziel",
+                value = "${LanBridge.HOST}:${LanBridge.PORT}",
+                modifier = Modifier.weight(1f),
+            )
+            AddressPill(
+                label = "Dieses Gerät",
+                value = localIp ?: "nicht im WLAN",
+                modifier = Modifier.weight(1f),
+            )
+        }
+        // Klarer Start-Knopf: baut die LAN-Welt-Anleitung auf bzw. klappt sie zu.
+        Button(
+            onClick = {
+                expanded = !expanded
+                if (expanded) onStarted()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(14.dp),
+        ) {
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                if (expanded) "  Anleitung ausblenden" else "  LAN-Welt starten",
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LanBridge.steps(localIp).forEachIndexed { index, step ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "${index + 1}.",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Column {
+                            Text(
+                                step.title,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                step.detail,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "Die App kann die Weiterleitung nicht selbst übernehmen – Android erlaubt " +
+                        "keiner normalen App offenen Port unter 1024 und keine LAN-Ankündigung. " +
+                        "Handy und PC verbinden sich direkt mit der Adresse oben.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** Kompakte Adressanzeige mit Beschriftung. */
+@Composable
+private fun AddressPill(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
