@@ -9,27 +9,22 @@ on:
       - "shared/**"
       - ".github/workflows/ios.yml"
 
-# Kein Abbruch laufender Builds: macOS-Läufe dauern lange, und ein
-# "cancelled" verschluckt das Ergebnis, statt einen Fehler zu zeigen.
 concurrency:
   group: ios-build-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   build:
-    # macOS-Runner sind nötig, weil Xcode nur dort läuft.
-    runs-on: macos-14
+    # self-hosted zuerst: macOS-Runner von GitHub werden für dieses Repository
+    # nicht zugeteilt (Job endet in 0 Sekunden ohne Schritte). Läuft ein Mac
+    # mit installiertem Runner, wird er genommen.
+    runs-on: [self-hosted, macOS]
     steps:
-      # Erster Schritt: belegt, dass der Runner gestartet ist und welche
-      # Werkzeuge da sind. Wenn dieser Schritt fehlt, wurde der Job nie
-      # zugeteilt – dann liegt es am Runner/Billing, nicht am Code.
       - name: Runner prüfen
         run: |
           echo "Runner: $RUNNER_OS $RUNNER_ARCH"
           sw_vers
           xcodebuild -version
-          swift --version
-          which xcodegen || true
       - uses: actions/checkout@v4
 
       - name: JDK 17
@@ -65,7 +60,7 @@ jobs:
   testflight:
     needs: build
     if: github.event_name == 'workflow_dispatch' && vars.ENABLE_TESTFLIGHT == 'true'
-    runs-on: macos-14
+    runs-on: [self-hosted, macOS]
     steps:
       - uses: actions/checkout@v4
 
@@ -77,7 +72,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: XcodeGen
-        run: brew install xcodegen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
 
       - name: Projekt erzeugen
         working-directory: ios

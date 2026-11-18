@@ -37,6 +37,33 @@ dein Apple-Team wählen.
 | Datenschutzerklärung | App Store Connect | Pflicht-URL; die App sendet nur Anfragen an mcaffen.de und GitHub |
 | Altersfreigabe | App Store Connect | Fragebogen, für eine Server-App unkritisch |
 
+
+## 2b. Wenn GitHub keine macOS-Runner zuteilt
+
+Symptom: Der Lauf ist nach 0 Sekunden `cancelled`, der Job hat `runner_name: ''`
+und **keine Schritte**. Dann wird der Job abgewiesen, bevor er startet – das
+passiert bei Organisations-Konten ohne hinterlegte Zahlungsmethode.
+
+Der Workflow ist deshalb auf einen **selbst gehosteten Mac** umgestellt
+(`runs-on: [self-hosted, macOS]`). Einmalig auf dem Mac einrichten:
+
+```bash
+mkdir actions-runner && cd actions-runner
+curl -O -L https://github.com/actions/runner/releases/latest/download/actions-runner-osx-arm64.tar.gz
+tar xzf actions-runner-osx-arm64.tar.gz
+./config.sh --url https://github.com/McAffen/McAffen-App --token <TOKEN>
+./run.sh          # oder: ./svc.sh install && ./svc.sh start
+```
+
+Den `<TOKEN>` holst du unter
+`Settings → Actions → Runners → New self-hosted runner`.
+
+Der Mac braucht: Xcode (aktuelle Version), JDK 17, `brew install xcodegen`.
+Danach greift der iOS-Build sofort.
+
+**Alternative ohne Runner:** lokal bauen –
+`cd ios && xcodegen generate && open McAffen.xcodeproj`
+
 ## 3. TestFlight über GitHub Actions
 
 Einmalig diese Secrets im Repo setzen (`Settings → Secrets and variables → Actions`):
