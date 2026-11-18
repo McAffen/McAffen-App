@@ -239,13 +239,14 @@ internal fun VoteScreen(
                         EmptyState(
                             emoji = "🗳️",
                             title = "Keine Vote-Seiten",
-                            text = "Ziehe zum Aktualisieren nach unten – die Seiten kommen von mcaffen.de.",
+                            text = "Ziehe zum Aktualisieren nach unten – die Seiten werden beim ersten Start geladen.",
                         )
                     }
                 }
                 items(voteSites, key = { it.site }) { site ->
                     val lastVoted = voteTimes[site.site] ?: 0L
-                    val remaining = lastVoted + VOTE_COOLDOWN_MS - now
+                    val cooldown = site.hours.coerceAtLeast(1) * 60L * 60L * 1000L
+                    val remaining = lastVoted + cooldown - now
                     val readyAgain = lastVoted <= 0L || remaining <= 0
                     val voteUri = selectedPlayerName?.let { playerName -> site.url.toVoteUri(playerName) }
                     Reveal(visible = animationsEnabled, fromScale = 0.97f) {
@@ -253,6 +254,7 @@ internal fun VoteScreen(
                             site = site,
                             lastVoted = lastVoted,
                             remaining = remaining,
+                            cooldown = cooldown,
                             readyAgain = readyAgain,
                             canVote = canVote && voteUri != null,
                             onVote = {
@@ -341,6 +343,7 @@ private fun VoteSiteCard(
     site: VoteSite,
     lastVoted: Long,
     remaining: Long,
+    cooldown: Long,
     readyAgain: Boolean,
     canVote: Boolean,
     onVote: () -> Unit,
@@ -374,7 +377,7 @@ private fun VoteSiteCard(
                 Text(site.site, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                 Text(
                     when {
-                        lastVoted <= 0L -> "Vote-Schlüssel & Coins"
+                        lastVoted <= 0L -> site.reward ?: "Vote-Schlüssel & Coins"
                         readyAgain -> "Bereit – du kannst wieder voten"
                         else -> "Wieder möglich in ${formatRemainingShort(remaining)}"
                     },
@@ -426,7 +429,7 @@ private fun VoteSiteCard(
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
                 ) {
-                    val done = 1f - (remaining.toFloat() / VOTE_COOLDOWN_MS).coerceIn(0f, 1f)
+                    val done = 1f - (remaining.toFloat() / cooldown.toFloat()).coerceIn(0f, 1f)
                     Box(
                         Modifier
                             .fillMaxWidth(done)

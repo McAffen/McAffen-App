@@ -1,6 +1,7 @@
 package de.mcaffen.app.model
 
 import androidx.compose.ui.graphics.Color
+import android.net.Uri
 
 // Data model for player statistics
 data class PlayerStat(
@@ -14,7 +15,15 @@ data class PlayerStat(
 data class VoteSite(
     val site: String,
     val url: String,
-)
+    /** Wartezeit bis zum nächsten Vote in Stunden. */
+    val hours: Int = 24,
+    /** Belohnung pro Vote, wie sie die Website nennt (optional). */
+    val reward: String? = null,
+) {
+    /** Vote-Link mit eingesetztem Spielernamen (die Website nutzt `{user}`). */
+    fun urlFor(playerName: String): String =
+        url.replace("{user}", Uri.encode(playerName.trim()))
+}
 
 // Ein einzelner Server im McAffen-Netzwerk (aus /api/status "servers")
 data class ServerInfo(

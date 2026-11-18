@@ -63,25 +63,53 @@ class McAffenRepository(
     ): File = UpdateInstaller.download(context, client, url, onProgress)
 
     suspend fun refresh() = coroutineScope {
-        val leaderboard = async { api.getLeaderboard() }
-        val votes = async { api.getVoteSites() }
-        val serverStatus = async { api.getServerStatus() }
-        val oldScores = dao.currentPlayers().associate { it.name to it.score }
-        dao.savePlayers(
-            leaderboard.await().map { stat ->
-                PlayerEntity(stat.name, stat.score, oldScores[stat.name]?.takeIf { it != stat.score })
-            },
-        )
-        dao.saveVoteSites(votes.await().map { VoteSiteEntity(it.site, it.url) })
-        val current = serverStatus.await()
-        dao.saveStatus(
-            ServerStatusEntity(
-                onlinePlayers = current.onlinePlayers,
-                networkServers = current.networkServers,
-                messages = current.messages.joinToString("\n"),
-                servers = current.servers.takeIf { it.isNotEmpty() }?.let { serversAdapter.toJson(it) },
-            ),
-        )
+        // Rangliste und Status liegen auf demselben Endpunkt; jeder Teil wird
+        // einzeln abgesichert, damit ein Fehler den anderen nicht mitreißt.
+        val leaderboard = async { runCatching { api.getLeaderboard() } }
+        val serverStatus = async { runCatching { api.getServerStatus() } }
+
+        leaderboard.await().onSuccess { entries ->
+            val oldScores = dao.currentPlayers().associate { it.name to it.score }
+            val mapped = entries
+                .filter { it.name.isNotBlank() }
+                .map { entry ->
+                    val score = entry.points.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+                    PlayerEntity(entry.name, score, oldScores[entry.name]?.takeIf { it != score })
+                }
+            if (mapped.isNotEmpty()) dao.savePlayers(mapped)
+        }
+
+        serverStatus.await().onSuccess { raw ->
+            val infos = raw.servers.map { server ->
+                ServerInfo(
+                    name = server.name ?: server.id ?: "Server",
+                    type = server.type ?: if (server.main == true) "main" else "",
+                    online = server.online,
+                    players = server.players?.online ?: 0,
+                    version = server.version,
+                )
+            }
+            val online = raw.servers.sumOf { it.players?.online ?: 0 }
+            val networkServers = raw.servers.size.takeIf { it > 0 } ?: infos.size
+            val messages = raw.messages
+                .ifEmpty { infos.filter { it.online }.map { "${it.name}: ${it.players} Spieler online" } }
+            dao.saveStatus(
+                ServerStatusEntity(
+                    onlinePlayers = online,
+                    networkServers = networkServers,
+                    messages = messages.joinToString("\n"),
+                    servers = infos.takeIf { it.isNotEmpty() }?.let { serversAdapter.toJson(it) },
+                ),
+            )
+        }
+
+        // Vote-Seiten liefert die Website nur eingebettet aus; sie stehen deshalb
+        // fest in der App (wie auf mcaffen.de) und werden einmalig gespeichert.
+        if (dao.voteSiteCount() == 0) {
+            dao.saveVoteSites(
+                DefaultVoteSites.ALL.map { VoteSiteEntity(it.site, it.url, it.hours, it.reward) },
+            )
+        }
     }
 
     /**

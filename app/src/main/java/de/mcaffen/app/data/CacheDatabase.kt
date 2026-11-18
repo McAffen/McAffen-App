@@ -17,7 +17,14 @@ import kotlinx.coroutines.flow.Flow
 data class PlayerEntity(val name: String, val score: Int, val previousScore: Int? = null)
 
 @Entity(tableName = "vote_sites", primaryKeys = ["site"])
-data class VoteSiteEntity(val site: String, val url: String)
+data class VoteSiteEntity(
+    val site: String,
+    val url: String,
+    /** Wartezeit bis zum nächsten Vote in Stunden (Standard 24). */
+    val hours: Int = 24,
+    /** Belohnung pro Vote, wie sie die Website nennt. */
+    val reward: String? = null,
+)
 
 @Entity(tableName = "server_status", primaryKeys = ["id"])
 data class ServerStatusEntity(
@@ -48,6 +55,9 @@ interface CacheDao {
 
     @Query("SELECT * FROM vote_sites ORDER BY site")
     fun voteSites(): Flow<List<VoteSiteEntity>>
+
+    @Query("SELECT COUNT(*) FROM vote_sites")
+    suspend fun voteSiteCount(): Int
 
     @Query("SELECT * FROM server_status WHERE id = 0")
     fun status(): Flow<ServerStatusEntity?>
@@ -88,6 +98,15 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Vote-Seiten kommen jetzt fest aus der App (wie auf der Website) und
+        // kennen zusätzlich Wartezeit und Belohnung.
+        db.execSQL("ALTER TABLE vote_sites ADD COLUMN hours INTEGER NOT NULL DEFAULT 24")
+        db.execSQL("ALTER TABLE vote_sites ADD COLUMN reward TEXT")
+    }
+}
+
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) {
         // Der Status-Endpunkt liefert mittlerweile die Server-Liste; als JSON cachen.
@@ -111,7 +130,7 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 
 @Database(
     entities = [PlayerEntity::class, VoteSiteEntity::class, ServerStatusEntity::class, LegalCacheEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class CacheDatabase : RoomDatabase() {
@@ -119,4 +138,4 @@ abstract class CacheDatabase : RoomDatabase() {
 }
 
 fun PlayerEntity.toModel() = PlayerStat(name, score, previousScore)
-fun VoteSiteEntity.toModel() = VoteSite(site, url)
+fun VoteSiteEntity.toModel() = VoteSite(site, url, hours, reward)

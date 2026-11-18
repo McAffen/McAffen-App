@@ -72,7 +72,7 @@ private data class WelcomeSlide(
 private val slides = listOf(
     WelcomeSlide(
         eyebrow = "Willkommen",
-        title = "McAffen, in deiner Tasche",
+        title = "Willkommen in der McAffen-App",
         description = "Rangliste, Voten und Live-Status des Minecraft-Netzwerks mcaffen.de – " +
             "schnell, schön und ohne Umweg über den Browser.",
         emoji = "🐵",

@@ -127,7 +127,8 @@ internal fun LeaderboardScreen(
                         emoji = "🏆",
                         title = "Noch keine Rangliste",
                         text = "Sobald mcaffen.de Daten liefert, erscheint hier das Podium. " +
-                            "Ziehe zum Aktualisieren nach unten.",
+                            "Ziehe zum Aktualisieren nach unten – die Server-Datenbank ist " +
+                            "gerade eventuell in Wartung.",
                         modifier = Modifier.fillMaxSize(),
                     )
                 loading && players.isEmpty() ->
