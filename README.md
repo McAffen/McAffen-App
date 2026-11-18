@@ -3,7 +3,7 @@
 Compose-MVP für `mcaffen.de` mit Rangliste, Voten und Serverstatus.
 
 ## Architektur 
- 
+  
 - **UI:** Jetpack Compose Material 3 mit Bottom Navigation
 - **Datenzugriff:** Retrofit/Moshi gegen `https://mcaffen.de/{rangliste,voten,status}`; Ranglistenplätze werden angezeigt und Vote-Links erst nach erfolgreicher Spielersuche sowie HTTPS-Prüfung freigeschaltet
 - **Datenschutz:** Die App enthält keine Zugangsdaten und protokolliert keine Netzwerk-URLs oder Spielernamen
