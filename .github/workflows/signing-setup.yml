@@ -1,0 +1,107 @@
+name: Signing-Key erzeugen
+
+# Erzeugt EINMALIG den Release-Keystore der App und hinterlegt ihn als GitHub-Secret.
+# Damit ist jede Release-APK mit demselben Schlüssel signiert und lässt sich über die
+# installierte App hinweg aktualisieren (In-App-Update).
+#
+# Das Repository ist öffentlich: Das Passwort wird zufällig erzeugt, nie geloggt und
+# nur als Secret gespeichert. Der Keystore selbst liegt ebenfalls nur als Secret.
+#
+# Nach dem Lauf: Secrets sind bereits gesetzt – der Workflow kann gelöscht werden,
+# das Artefakt (verschlüsseltes Backup) sollte einmal heruntergeladen werden.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Zum Bestätigen "erzeugen" eingeben – überschreibt KEINE vorhandenen Secrets, bricht vorher ab.'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  create-keystore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Eingabe prüfen
+        run: |
+          if [[ "${{ inputs.confirm }}" != "erzeugen" ]]; then
+            echo "::error::Bitte 'erzeugen' als Bestätigung eingeben."
+            exit 1
+          fi
+
+      - name: Vorhandene Secrets prüfen (nicht überschreiben)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          existing="$(gh api "repos/${{ github.repository }}/actions/secrets" --jq '.secrets[].name' || true)"
+          for name in RELEASE_KEYSTORE_BASE64 RELEASE_KEYSTORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+            if grep -qx "$name" <<< "$existing"; then
+              echo "::error::Secret $name existiert bereits – es wird nichts überschrieben. Bei Bedarf vorher löschen."
+              exit 1
+            fi
+          done
+
+      - name: Keystore erzeugen
+        id: key
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/mcaffen-release.keystore"
+          password="$(openssl rand -base64 36 | tr -d '\n/+=' | cut -c1-40)"
+          keytool -genkeypair -v \
+            -keystore "$keystore" \
+            -storetype PKCS12 \
+            -storepass "$password" \
+            -alias mcaffen \
+            -keypass "$password" \
+            -keyalg RSA -keysize 4096 -validity 10000 \
+            -dname "CN=McAffen, OU=Android, O=McAffen, L=Berlin, S=Berlin, C=DE"
+          base64 -w0 "$keystore" > "$RUNNER_TEMP/keystore.base64"
+          # Passwort nur in die Workflow-Datei schreiben, nie ins Log.
+          printf 'KEYSTORE_PASSWORD=%s\n' "$password" >> "$GITHUB_ENV"
+          # Fingerabdruck ist nicht geheim und hilft beim Prüfen der Signatur.
+          keytool -list -v -keystore "$keystore" -storepass "$password" -alias mcaffen \
+            | grep -E "SHA256:|Owner:|Valid" || true
+          sha256sum "$keystore" | tee "$RUNNER_TEMP/keystore.sha256"
+
+      - name: Secrets setzen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          gh secret set RELEASE_KEYSTORE_BASE64 --repo "$repo" < "$RUNNER_TEMP/keystore.base64"
+          gh secret set RELEASE_KEYSTORE_PASSWORD --repo "$repo" --body "$KEYSTORE_PASSWORD"
+          gh secret set RELEASE_KEY_PASSWORD --repo "$repo" --body "$KEYSTORE_PASSWORD"
+          gh secret set RELEASE_KEY_ALIAS --repo "$repo" --body "mcaffen"
+          echo "Secrets gesetzt."
+
+      - name: Verschlüsseltes Backup als Artefakt
+        run: |
+          set -euo pipefail
+          # ZIP mit AES-256-Passwortschutz; Passwort steht im Lauf-Protokoll NICHT.
+          zip -j -P "$KEYSTORE_PASSWORD" "$RUNNER_TEMP/mcaffen-signing.zip" \
+            "$RUNNER_TEMP/mcaffen-release.keystore" "$RUNNER_TEMP/keystore.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcaffen-signing-backup
+          path: ${{ runner.temp }}/mcaffen-signing.zip
+          retention-days: 1
+
+      - name: Zusammenfassung
+        run: |
+          {
+            echo "### Release-Keystore angelegt"
+            echo ""
+            echo "Die vier Secrets sind gesetzt – **keine weiteren Schritte nötig**."
+            echo ""
+            echo "**Backup:** Lade das Artefakt \`mcaffen-signing-backup\` herunter und sichere es"
+            echo "(Passwortschutz = Keystore-Passwort aus dem Secret). Das Artefakt verschwindet nach 1 Tag."
+            echo ""
+            echo "**Danach:** Diesen Workflow kannst du löschen; er ist nur für die einmalige Erzeugung da."
+          } >> "$GITHUB_STEP_SUMMARY"

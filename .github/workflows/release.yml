@@ -21,59 +21,59 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v6
+      # Eindeutige Version aus Datum + Commit-Zähler: steigt immer monoton,
+      # damit jede Release-APK den installierten versionCode übertrifft.
+      # Format 1.YYMMDD.<commits>  →  z. B. v1.251118.42
       - name: Determine release tag
         id: tag
-        run: echo "tag=v1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
-      - run: ./gradlew test lint assembleRelease "-PmcaffenTag=${{ steps.tag.outputs.tag }}"
-      - name: Sign release APK
+        run: |
+          set -euo pipefail
+          commits="$(git rev-list --count HEAD)"
+          echo "tag=v1.$(date -u +%y%m%d).${commits}" >> "$GITHUB_OUTPUT"
+      - name: Keystore aus Secret bereitstellen
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${RELEASE_KEYSTORE_BASE64:-}" ]]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 fehlt – bitte einmalig den Workflow 'Signing-Key erzeugen' starten."
+            exit 1
+          fi
+          mkdir -p signing
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > signing/mcaffen-release.keystore
+          echo "Keystore bereitgestellt ($(stat -c%s signing/mcaffen-release.keystore) Bytes)."
+
+      - name: Build (signiert direkt mit dem festen Schlüssel)
+        env:
+          RELEASE_KEYSTORE_PATH: signing/mcaffen-release.keystore
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew test lint assembleRelease "-PmcaffenTag=${{ steps.tag.outputs.tag }}"
+      - name: Signatur prüfen
         run: |
           set -euo pipefail
-          unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
-          signed_apk="app/build/outputs/apk/release/McAffen-release.apk"
-          keystore="${RUNNER_TEMP}/mcaffen-release.keystore"
-
-          if [[ -n "${RELEASE_KEYSTORE_BASE64:-}" ]]; then
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$keystore"
-            key_alias="${RELEASE_KEY_ALIAS:?RELEASE_KEY_ALIAS secret is required}"
-            key_password="${RELEASE_KEY_PASSWORD:?RELEASE_KEY_PASSWORD secret is required}"
-            keystore_password="${RELEASE_KEYSTORE_PASSWORD:?RELEASE_KEYSTORE_PASSWORD secret is required}"
-          else
-            echo "::warning::Release signing secrets are not configured; generating a temporary signing key."
-            key_alias="mcaffen"
-            keystore_password="$(openssl rand -hex 32)"
-            key_password="$keystore_password"
-            keytool -genkeypair -v \
-              -keystore "$keystore" \
-              -storepass "$keystore_password" \
-              -alias "$key_alias" \
-              -keypass "$key_password" \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=McAffen, OU=Android, O=McAffen, L=Berlin, S=Berlin, C=DE"
+          apk="app/build/outputs/apk/release/app-release.apk"
+          if [[ ! -f "$apk" ]]; then
+            apk="$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)"
           fi
-
           apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
-          "$apksigner" sign \
-            --ks "$keystore" \
-            --ks-key-alias "$key_alias" \
-            --ks-pass "pass:$keystore_password" \
-            --key-pass "pass:$key_password" \
-            --out "$signed_apk" \
-            "$unsigned_apk"
-          "$apksigner" verify "$signed_apk"
+          "$apksigner" verify --print-certs "$apk"
+          echo "SHA256-Zertifikat (muss bei jedem Release gleich bleiben):"
+          "$apksigner" verify --print-certs "$apk" | grep -i "SHA-256 digest" || true
+          # Zielname für das Release-Asset.
+          mkdir -p dist
+          cp "$apk" dist/McAffen-release.apk
+
       - name: Compute APK checksum
         id: checksum
         run: |
           set -euo pipefail
-          apk="app/build/outputs/apk/release/McAffen-release.apk"
+          apk="dist/McAffen-release.apk"
           checksum="$(sha256sum "$apk" | awk '{print $1}')"
           echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
           printf 'SHA256 %s  McAffen-release.apk\n' "$checksum" \
-            > "app/build/outputs/apk/release/McAffen-release.apk.sha256"
+            > "dist/McAffen-release.apk.sha256"
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
@@ -91,5 +91,5 @@ jobs:
           generate_release_notes: true
           target_commitish: ${{ github.sha }}
           files: |
-            app/build/outputs/apk/release/McAffen-release.apk
-            app/build/outputs/apk/release/McAffen-release.apk.sha256
+            dist/McAffen-release.apk
+            dist/McAffen-release.apk.sha256

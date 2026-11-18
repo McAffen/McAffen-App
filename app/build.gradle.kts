@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -19,10 +21,12 @@ android {
     val versionParts = releaseVersionName.split('.')
         .map { part -> part.filter(Char::isDigit).takeIf(String::isNotEmpty)?.toIntOrNull() ?: 0 }
     val paddedParts = versionParts.take(3) + List(maxOf(0, 3 - versionParts.size)) { 0 }
+    // Patch-Anteil darf bis 999.999 gehen (Datumsversionen wie 1.251118.1234),
+    // damit jede Veröffentlichung einen höheren versionCode hat als die vorherige.
     val releaseVersionCode: Int =
-        paddedParts[0].coerceIn(0, 999) * 1_000_000 +
-            paddedParts[1].coerceIn(0, 999) * 1_000 +
-            paddedParts[2].coerceIn(0, 999)
+        paddedParts[0].coerceIn(0, 99) * 10_000_000 +
+            paddedParts[1].coerceIn(0, 99) * 100_000 +
+            paddedParts[2].coerceIn(0, 99_999)
 
     defaultConfig {
         applicationId = "de.mcaffen.app"
@@ -34,9 +38,49 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    // Signatur: derselbe Schlüssel für jede Release-APK, sonst verweigert Android
+    // das Update über die installierte App. Quelle (in dieser Reihenfolge):
+    //   1. CI: Keystore-Datei + Passwörter aus Umgebungsvariablen (GitHub Secrets)
+    //   2. lokal: signing/keystore.properties + signing/mcaffen-release.keystore (gitignored)
+    // Fehlt beides, entsteht eine unsignierte APK – der Release-Workflow bricht dann ab.
+    val keystorePropertiesFile = rootProject.file("signing/keystore.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { stream -> keystoreProperties.load(stream) }
+    }
+    fun signingValue(env: String, key: String): String? =
+        System.getenv(env)?.takeIf(String::isNotBlank) ?: keystoreProperties.getProperty(key)?.takeIf(String::isNotBlank)
+
+    val releaseStorePath = signingValue("RELEASE_KEYSTORE_PATH", "storeFile")
+    val releaseStorePassword = signingValue("RELEASE_KEYSTORE_PASSWORD", "storePassword")
+    val releaseKeyAlias = signingValue("RELEASE_KEY_ALIAS", "keyAlias")
+    val releaseKeyPassword = signingValue("RELEASE_KEY_PASSWORD", "keyPassword")
+    val hasReleaseSigning = releaseStorePath != null &&
+        releaseStorePassword != null &&
+        releaseKeyAlias != null &&
+        releaseKeyPassword != null &&
+        rootProject.file(releaseStorePath).exists()
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
