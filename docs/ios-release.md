@@ -12,7 +12,7 @@ ios/
   McAffen/         SwiftUI-App (Rangliste, Voten, Status, Einstellungen)
   project.yml      XcodeGen-Beschreibung → erzeugt McAffen.xcodeproj
   ExportOptions.plist
-.github/workflows/ios.yml   Build auf jedem Push, TestFlight auf Knopfdruck
+.github/workflows/ios.yml   Manueller iOS-Build/TestFlight und paralleler iOS-Build bei jedem Cross-platform-Release
 ```
 
 ## 1. Lokal starten (braucht einen Mac)

@@ -1,4 +1,4 @@
-name: Android Release
+name: Cross-platform Release
 
 on:
   push:
@@ -166,3 +166,8 @@ jobs:
           files: |
             dist/McAffen-release.apk
             dist/McAffen-release.apk.sha256
+
+  ios:
+    name: iOS Release-Build
+    uses: ./.github/workflows/ios.yml
+    secrets: inherit
