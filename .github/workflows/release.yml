@@ -42,10 +42,14 @@ jobs:
             exit 1
           fi
           mkdir -p signing
-          # Das Secret kann Zeilenumbrüche/Leerzeichen enthalten (beim Einfügen entstanden) –
-          # base64 ignoriert sie zwar, aber Zeilenumbrüche in einer Env-Variable würden
-          # die Ausgabe zerreißen. Deshalb erst alles Nicht-Base64 entfernen.
-          printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '\r\n\t ' | base64 --decode > signing/mcaffen-release.keystore
+          # Das Secret kann echte oder als "\n" kopierte Zeilenumbrüche sowie
+          # versehentlich mitkopierte Metadaten enthalten. Diese entfernen, bevor
+          # der Inhalt dekodiert wird; keytool validiert anschließend den Keystore.
+          encoded="${RELEASE_KEYSTORE_BASE64#RELEASE_KEYSTORE_BASE64=}"
+          encoded="${encoded#\"}"
+          encoded="${encoded%\"}"
+          encoded="$(printf '%s' "$encoded" | sed 's/\\n//g' | tr -d '\r\n\t ')"
+          printf '%s' "$encoded" | base64 --decode --ignore-garbage > signing/mcaffen-release.keystore
           size="$(stat -c%s signing/mcaffen-release.keystore)"
           echo "Keystore bereitgestellt ($size Bytes)."
           if [[ "$size" -lt 1000 ]]; then
