@@ -7,3 +7,6 @@ local.properties
 
 # Release signing material must never be committed.
 /signing/
+
+# Build-Ausgaben des shared-Moduls
+shared/build/
