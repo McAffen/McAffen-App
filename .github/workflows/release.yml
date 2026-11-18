@@ -21,43 +21,20 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v6
-      # Eindeutige Version aus Datum + Commit-Zähler: steigt immer monoton,
-      # damit jede Release-APK den installierten versionCode übertrifft.
-      # Format 1.YYMMDD.<commits>  →  z. B. v1.251118.42
+      # Version zählt einfach hoch: v1.0.NNN → NNN = höchste vorhandene Nummer + 1.
+      # Dadurch steigt der versionCode bei jedem Release um 1 und Android nimmt
+      # jedes Update über die installierte App an.
       - name: Determine release tag
         id: tag
         run: |
           set -euo pipefail
-          commits="$(git rev-list --count HEAD)"
-          # Version muss bei JEDEM Lauf steigen, sonst gibt es keinen neuen
-          # versionCode und Android lehnt das Update ab. Liegt der berechnete
-          # Tag nicht über allen vorhandenen, wird die Patch-Nummer erhöht.
-          today="$(date -u +%y%m%d)"
-          # Höchsten versionCode aller vorhandenen Tags bestimmen (im eigenen Prozess,
-          # damit die Schleife die Variable wirklich aktualisiert).
-          highest="$(git tag --list 'v*' | python3 -c '
-          import sys
-          best = 0
-          for line in sys.stdin:
-              tag = line.strip().lstrip("v")
-              parts = [p for p in tag.split(".")]
-              if len(parts) < 3:
-                  continue
-              try:
-                  major, minor, patch = (int(p) for p in parts[:3])
-              except ValueError:
-                  continue
-              best = max(best, major * 10000000 + minor * 100000 + patch)
-          print(best)
-          ')"
-          # Patch-Nummer = bisheriger Patch + 1 (nie zurückspringen, auch nicht
-          # wenn ein alter Tag eine riesige Nummer hatte).
-          patch="$(( highest % 100000 + 1 ))"
-          (( patch > 99999 )) && patch=1
-          candidate="v1.${today}.${patch}"
-          echo "::notice::Höchster vorhandener versionCode: $highest → neuer Tag $candidate"
-          echo "tag=$candidate" >> "$GITHUB_OUTPUT"
-          echo "Release-Tag: $candidate (versionCode $(version_to_code "$candidate"))"
+          # Alle Tags holen (auch die, die nicht im Checkout liegen).
+          git fetch --tags --force --quiet || true
+          highest="$(git tag --list 'v1.0.*' | sed -E 's/^v1\.0\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -n 1)"
+          highest="${highest:-0}"
+          next="$(( highest + 1 ))"
+          echo "tag=v1.0.${next}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Höchste vorhandene Version: v1.0.${highest} → neues Release v1.0.${next}"
       - name: Keystore aus Secret bereitstellen
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
