@@ -50,6 +50,7 @@ jobs:
           encoded="${encoded%\"}"
           python3 - "$encoded" <<'PY'
           import base64
+          import hashlib
           import sys
 
           raw = sys.argv[1]
@@ -64,6 +65,9 @@ jobs:
           except Exception as exc:
               print(f"::error::RELEASE_KEYSTORE_BASE64 ist ungültig: {exc}")
               raise SystemExit(1)
+          print(f"Base64-Länge: {len(raw)} Zeichen")
+          print(f"Base64-SHA256: {hashlib.sha256(encoded.encode('ascii')).hexdigest()}")
+          print(f"Keystore-SHA256: {hashlib.sha256(data).hexdigest()}")
           if len(data) < 1000:
               print(f"::error::Der dekodierte Keystore ist zu klein ({len(data)} Bytes).")
               raise SystemExit(1)
