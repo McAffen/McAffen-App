@@ -33,6 +33,8 @@ jobs:
       - name: Keystore aus Secret bereitstellen
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         run: |
           set -euo pipefail
           if [[ -z "${RELEASE_KEYSTORE_BASE64:-}" ]]; then
@@ -40,8 +42,20 @@ jobs:
             exit 1
           fi
           mkdir -p signing
-          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > signing/mcaffen-release.keystore
-          echo "Keystore bereitgestellt ($(stat -c%s signing/mcaffen-release.keystore) Bytes)."
+          # Das Secret kann Zeilenumbrüche/Leerzeichen enthalten (beim Einfügen entstanden) –
+          # base64 ignoriert sie zwar, aber Zeilenumbrüche in einer Env-Variable würden
+          # die Ausgabe zerreißen. Deshalb erst alles Nicht-Base64 entfernen.
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '\r\n\t ' | base64 --decode > signing/mcaffen-release.keystore
+          size="$(stat -c%s signing/mcaffen-release.keystore)"
+          echo "Keystore bereitgestellt ($size Bytes)."
+          if [[ "$size" -lt 1000 ]]; then
+            echo "::error::Der dekodierte Keystore ist zu klein ($size Bytes) – Secret RELEASE_KEYSTORE_BASE64 prüfen."
+            exit 1
+          fi
+          # Passwort prüfen, bevor Gradle läuft (gibt das Passwort nicht aus).
+          keytool -list -keystore signing/mcaffen-release.keystore \
+            -storepass "$RELEASE_KEYSTORE_PASSWORD" -alias "$RELEASE_KEY_ALIAS" > /dev/null \
+            || { echo "::error::Keystore-Passwort oder Alias passt nicht zum Secret."; exit 1; }
 
       - name: Build (signiert direkt mit dem festen Schlüssel)
         env:
