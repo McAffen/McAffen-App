@@ -11,6 +11,7 @@ import de.mcaffen.app.network.McAffenApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import android.content.Context
 import java.io.File
@@ -76,12 +77,22 @@ class McAffenRepository(
             .map { PlayerStat(it.name, it.points.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(), null) }
     }
 
+    /** Ergebnis der letzten Ranglisten-Aktualisierung (für Diagnose in der App). */
+    private val _lastBoardResult = kotlinx.coroutines.flow.MutableStateFlow<BoardResult?>(null)
+    val lastBoardResult = _lastBoardResult.asStateFlow()
+
+    data class BoardResult(val entries: Int, val error: String?, val at: Long)
+
     suspend fun refresh() = coroutineScope {
         // Rangliste und Status liegen auf demselben Endpunkt; jeder Teil wird
         // einzeln abgesichert, damit ein Fehler den anderen nicht mitreißt.
         val leaderboard = async { runCatching { api.getLeaderboard() } }
         val serverStatus = async { runCatching { api.getServerStatus() } }
 
+        leaderboard.await().onFailure { error ->
+            // Nicht still verschlucken: der Nutzer soll sehen, warum nichts kommt.
+            android.util.Log.w("McAffen", "Rangliste fehlgeschlagen: ${error.javaClass.simpleName}: ${error.message}", error)
+        }
         leaderboard.await().onSuccess { response ->
             val entries = response.list
                 .filter { it.name.isNotBlank() }
@@ -95,6 +106,14 @@ class McAffenRepository(
             // letzten Stand nicht löschen – aber wenn der Server antwortet, wird
             // die Liste vollständig ersetzt, damit keine alten Plätze stehen bleiben.
             if (mapped.isNotEmpty()) dao.savePlayers(mapped)
+            _lastBoardResult.value = BoardResult(mapped.size, null, System.currentTimeMillis())
+        }
+        leaderboard.await().onFailure { error ->
+            _lastBoardResult.value = BoardResult(
+                0,
+                "${error.javaClass.simpleName}: ${error.message ?: "ohne Meldung"}",
+                System.currentTimeMillis(),
+            )
         }
 
         serverStatus.await().onSuccess { raw ->

@@ -119,6 +119,21 @@ class McAffenViewModel(
     private val _loading = MutableStateFlow(false)
     val loading = _loading.asStateFlow()
 
+    /** Diagnose der letzten Ranglisten-Aktualisierung (sichtbar im Leer-Zustand). */
+    val boardResult = repository.lastBoardResult
+
+    /** Live-Test der Rangliste: schreibt das Ergebnis in die Snackbar. */
+    fun testLeaderboard() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = runCatching { repository.leaderboard("waves") }
+            result.onSuccess { list ->
+                _updateNotice.value = "Rangliste OK: ${list.size} Spieler, oben ${list.firstOrNull()?.name ?: "–"}"
+            }.onFailure { error ->
+                _updateNotice.value = "Rangliste FEHLER: ${error.javaClass.simpleName}: ${error.message}"
+            }
+        }
+    }
+
     /** Ranglisten-Ansicht: waves, kills, games, coins (Quelle: /ndu/top). */
     private val _boardSort = MutableStateFlow("waves")
     val boardSort = _boardSort.asStateFlow()
@@ -342,6 +357,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     val boardSort by vm.boardSort.collectAsStateWithLifecycle()
     val boardPlayers by vm.boardPlayers.collectAsStateWithLifecycle()
     val boardLoading by vm.boardLoading.collectAsStateWithLifecycle()
+    val boardResult by vm.boardResult.collectAsStateWithLifecycle()
     val animationsEnabled by settings.animationsEnabled.collectAsStateWithLifecycle()
     val darkMode by settings.darkMode.collectAsStateWithLifecycle()
     val colorName by settings.color.collectAsStateWithLifecycle()
@@ -665,6 +681,8 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         boardPlayers = boardPlayers,
                         boardLoading = boardLoading,
                         onBoardSortChange = vm::selectBoard,
+                        boardStatus = boardResult,
+                        onTestLeaderboard = vm::testLeaderboard,
                     )
                     Tab.VOTES -> VoteScreen(
                         players = players,

@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -68,6 +69,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.mcaffen.app.data.McAffenRepository
 import de.mcaffen.app.model.PlayerStat
 import de.mcaffen.app.ui.McAffenBrand
 import de.mcaffen.app.ui.components.AnimatedBackdrop
@@ -111,6 +113,8 @@ internal fun LeaderboardScreen(
     boardPlayers: List<PlayerStat> = emptyList(),
     boardLoading: Boolean = false,
     onBoardSortChange: (String) -> Unit = {},
+    boardStatus: McAffenRepository.BoardResult? = null,
+    onTestLeaderboard: () -> Unit = {},
 ) {
     // Die Standardliste kommt aus dem Cache (auch offline); die anderen Werte
     // werden live geladen. Angezeigt wird immer die aktive Ansicht.
@@ -138,14 +142,32 @@ internal fun LeaderboardScreen(
         PullToRefreshBox(isRefreshing = loading, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
             when {
                 players.isEmpty() && !activeLoading ->
-                    EmptyState(
-                        emoji = "🏆",
-                        title = "Rangliste wird geladen",
-                        text = "Sobald mcaffen.de Daten liefert, erscheint hier das Podium " +
-                            "(aktuell: erreichte Wellen in „Nacht der Untoten“). Ziehe zum " +
-                            "Aktualisieren nach unten.",
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    Column(
+                        Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        EmptyState(
+                            emoji = "🏆",
+                            title = "Rangliste ist leer",
+                            text = boardStatus?.error?.let { "Fehler: $it" }
+                                ?: boardStatus?.let { "Antwort kam an (${it.entries} Einträge)." }
+                                ?: "Noch keine Anfrage gelaufen – tippe auf „Jetzt testen“.",
+                        )
+                        Button(
+                            onClick = onTestLeaderboard,
+                            shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Text("Jetzt testen")
+                        }
+                        boardStatus?.let { status ->
+                            Text(
+                                "Letzte Prüfung: ${lastCheckText(status.at)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 activeLoading && players.isEmpty() ->
                     Column(
                         Modifier
