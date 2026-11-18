@@ -23,3 +23,5 @@ Der Release-Workflow veröffentlicht ein signiertes, installierbares APK. Für s
 `RELEASE_KEYSTORE_BASE64`, `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` und `RELEASE_KEY_PASSWORD` hinterlegt werden. Ohne diese Secrets
 erzeugt der Workflow als Fallback einen temporären Schlüssel; die APK ist installierbar, aber spätere Releases können dann nicht als Update
 über die vorherige Installation installiert werden.
+
+<!-- Signing-Test: Release-Build mit festem Keystore -->
