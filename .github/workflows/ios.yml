@@ -16,10 +16,9 @@ concurrency:
 
 jobs:
   build:
-    # self-hosted zuerst: macOS-Runner von GitHub werden für dieses Repository
-    # nicht zugeteilt (Job endet in 0 Sekunden ohne Schritte). Läuft ein Mac
-    # mit installiertem Runner, wird er genommen.
-    runs-on: [self-hosted, macOS]
+    # GitHub-hosted macOS avoids jobs waiting forever for an unavailable
+    # self-hosted runner.
+    runs-on: macos-14
     steps:
       - name: Runner prüfen
         run: |
@@ -61,7 +60,7 @@ jobs:
   testflight:
     needs: build
     if: github.event_name == 'workflow_dispatch' && vars.ENABLE_TESTFLIGHT == 'true'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 

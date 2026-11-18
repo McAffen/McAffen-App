@@ -38,14 +38,12 @@ dein Apple-Team wählen.
 | Altersfreigabe | App Store Connect | Fragebogen, für eine Server-App unkritisch |
 
 
-## 2b. Wenn GitHub keine macOS-Runner zuteilt
+## 2b. Wenn der Build einen eigenen Mac benutzt
 
-Symptom: Der Lauf ist nach 0 Sekunden `cancelled`, der Job hat `runner_name: ''`
-und **keine Schritte**. Dann wird der Job abgewiesen, bevor er startet – das
-passiert bei Organisations-Konten ohne hinterlegte Zahlungsmethode.
-
-Der Workflow ist deshalb auf einen **selbst gehosteten Mac** umgestellt
-(`runs-on: [self-hosted, macOS]`). Einmalig auf dem Mac einrichten:
+Die Standard-Workflows nutzen einen GitHub-gehosteten macOS-Runner
+(`runs-on: macos-14`). Falls du stattdessen einen selbst gehosteten Mac einrichten
+möchtest, ändere in `.github/workflows/ios.yml` beide `runs-on`-Einträge auf
+`[self-hosted, macOS]` und registriere den Mac einmalig:
 
 ```bash
 mkdir actions-runner && cd actions-runner
