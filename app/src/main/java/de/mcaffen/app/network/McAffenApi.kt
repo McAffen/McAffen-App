@@ -80,16 +80,23 @@ interface McAffenApi {
      * Rangliste des NDU-Servers. `sort`: waves, kills, games, coins.
      * `diff` (optional): easy, normal, hardcore.
      */
+    // `encoded = true` ist hier entscheidend: Retrofit würde `/` und `&` sonst
+    // kodieren (%2F, %26) und der Server antwortet mit 404. Der Pfad muss so
+    // ankommen, wie die Website ihn aufruft: p=/ndu/top&sort=waves
     @GET("web.php")
     suspend fun getLeaderboard(
-        @Query("p") path: String = "/ndu/top&sort=waves",
+        @Query("p", encoded = true) path: String = "/ndu/top&sort=waves",
     ): LeaderboardResponse
 
     /** Serverseitiges Netzwerk-Status-Objekt inkl. Serverliste. */
     @GET("web.php")
-    suspend fun getServerStatus(@Query("p") path: String = "/status"): RawStatus
+    suspend fun getServerStatus(
+        @Query("p", encoded = true) path: String = "/status",
+    ): RawStatus
 
     /** Bestätigte Votes eines Spielers (nur wenn das Vote-Plugin aktiv ist). */
     @GET("web.php")
-    suspend fun getPlayerVotes(@Query("p") path: String): RawPlayerVotes
+    suspend fun getPlayerVotes(
+        @Query("p", encoded = true) path: String,
+    ): RawPlayerVotes
 }

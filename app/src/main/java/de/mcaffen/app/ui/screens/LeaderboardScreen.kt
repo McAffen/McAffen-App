@@ -125,10 +125,10 @@ internal fun LeaderboardScreen(
                 players.isEmpty() && !loading ->
                     EmptyState(
                         emoji = "🏆",
-                        title = "Noch keine Rangliste",
-                        text = "Sobald mcaffen.de Daten liefert, erscheint hier das Podium. " +
-                            "Ziehe zum Aktualisieren nach unten – die Server-Datenbank ist " +
-                            "gerade eventuell in Wartung.",
+                        title = "Rangliste wird geladen",
+                        text = "Sobald mcaffen.de Daten liefert, erscheint hier das Podium " +
+                            "(aktuell: erreichte Wellen in „Nacht der Untoten“). Ziehe zum " +
+                            "Aktualisieren nach unten.",
                         modifier = Modifier.fillMaxSize(),
                     )
                 loading && players.isEmpty() ->
@@ -183,7 +183,7 @@ internal fun LeaderboardScreen(
                                 Reveal(visible = animationsEnabled) { Podium(players.take(PODIUM_SIZE)) }
                             }
                             item("listHeader") {
-                                SectionTitle("Platzierungen") {
+                                SectionTitle("Platzierungen · Wellen (Nacht der Untoten)") {
                                     PillChip(
                                         text = "${formatScore(players.size)} Spieler",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
