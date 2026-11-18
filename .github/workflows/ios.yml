@@ -18,7 +18,7 @@ jobs:
   build:
     # GitHub-hosted macOS avoids jobs waiting forever for an unavailable
     # self-hosted runner.
-    runs-on: macos-14
+    runs-on: macos-13
     steps:
       - name: Runner prüfen
         run: |
@@ -60,7 +60,7 @@ jobs:
   testflight:
     needs: build
     if: github.event_name == 'workflow_dispatch' && vars.ENABLE_TESTFLIGHT == 'true'
-    runs-on: macos-14
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
 

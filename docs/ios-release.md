@@ -41,7 +41,7 @@ dein Apple-Team wählen.
 ## 2b. Wenn der Build einen eigenen Mac benutzt
 
 Die Standard-Workflows nutzen einen GitHub-gehosteten macOS-Runner
-(`runs-on: macos-14`). Falls du stattdessen einen selbst gehosteten Mac einrichten
+(`runs-on: macos-13`). Falls du stattdessen einen selbst gehosteten Mac einrichten
 möchtest, ändere in `.github/workflows/ios.yml` beide `runs-on`-Einträge auf
 `[self-hosted, macOS]` und registriere den Mac einmalig:
 
