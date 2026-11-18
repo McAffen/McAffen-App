@@ -27,9 +27,9 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 | `RELEASE_KEY_ALIAS` | `mcaffen` |
 | `RELEASE_KEY_PASSWORD` | Passwort aus `signing/key-password.txt` |
 
-Die `.base64`-Datei enthält Zeilenumbrüche – beim Einfügen alle Zeilen zu einem
-zusammenhängenden Text verbinden (ohne Umbrüche), damit der `base64 --decode`-Aufruf
-im Workflow sicher funktioniert.
+Die `.base64`-Datei kann beim Einfügen mit Zeilenumbrüchen übernommen werden. Der
+Release-Workflow normalisiert echte bzw. als `\n` kopierte Umbrüche und entfernt
+versehentlich mitkopierte `RELEASE_KEYSTORE_BASE64=`-Metadaten vor dem Dekodieren.
 
 ### 2. Keystore sicher aufbewahren
 
