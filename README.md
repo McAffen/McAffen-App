@@ -9,7 +9,7 @@ App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
 - **Gemeinsam:** `shared/` – Modelle, API-Zugriff (Ktor), Vote-Seiten, Update-Logik
 - **iOS veröffentlichen:** siehe [docs/ios-release.md](docs/ios-release.md)
 
-## Architektur  
+## Architektur   
    
 - **UI:** Jetpack Compose Material 3 mit Bottom Navigation
 - **Datenzugriff:** Retrofit/Moshi gegen `https://mcaffen.de/{rangliste,voten,status}`; Ranglistenplätze werden angezeigt und Vote-Links erst nach erfolgreicher Spielersuche sowie HTTPS-Prüfung freigeschaltet
