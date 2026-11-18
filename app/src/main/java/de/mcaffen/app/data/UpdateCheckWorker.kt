@@ -67,6 +67,20 @@ class UpdateCheckWorker(
  */
 object UpdateCheckScheduler {
     private const val UNIQUE_NAME = "mcaffen-update-check"
+    private const val ONCE_NAME = "mcaffen-update-check-once"
+
+    /** Sofortige Einmal-Prüfung im Hintergrund (z. B. direkt nach dem Start). */
+    fun checkNow(context: Context) {
+        val settings = SettingsStore(context)
+        if (!settings.updateChecksEnabled.value) return
+        val request = androidx.work.OneTimeWorkRequestBuilder<UpdateCheckWorker>()
+            .setConstraints(
+                Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build(),
+            )
+            .build()
+        WorkManager.getInstance(context)
+            .enqueueUniqueWork(ONCE_NAME, androidx.work.ExistingWorkPolicy.REPLACE, request)
+    }
 
     fun update(context: Context) {
         val settings = SettingsStore(context)
@@ -95,6 +109,12 @@ object UpdateNotifier {
     private const val CHANNEL_ID = "mcaffen_updates"
     private const val NOTIFICATION_ID = 4242
 
+    /** Extras, mit denen MainActivity den Update-Dialog direkt öffnet. */
+    const val EXTRA_SHOW_UPDATE = "de.mcaffen.app.SHOW_UPDATE"
+    const val EXTRA_AUTO_INSTALL = "de.mcaffen.app.AUTO_INSTALL"
+    const val ACTION_LATER = "de.mcaffen.app.UPDATE_LATER"
+    const val EXTRA_TAG = "de.mcaffen.app.UPDATE_TAG"
+
     fun showUpdateAvailable(context: Context, release: AppRelease) {
         val manager = NotificationManagerCompat.from(context)
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -110,9 +130,13 @@ object UpdateNotifier {
         }
         ensureChannel(context)
 
-        // Klick auf die Benachrichtigung öffnet die App normal (kein Deep Link nötig).
-        val contentIntent = (context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent())
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        // Klick auf die Benachrichtigung öffnet die App und zeigt dort direkt
+        // den Update-Dialog (Extra wird von MainActivity ausgewertet).
+        val contentIntent = (
+            context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
+            )
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(EXTRA_SHOW_UPDATE, true)
         val pendingIntent = PendingIntent.getActivity(
             context,
             0,
@@ -120,15 +144,133 @@ object UpdateNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        val installed = BuildConfig.VERSION_NAME
+        val newVersion = release.tagName.removePrefix("v")
+        val sizeText = release.assetSize
+            ?.takeIf { it > 0 }
+            ?.let { " · ${formatMegabytes(it)}" }
+            .orEmpty()
+
+        // Antipper direkt in der Benachrichtigung: startet den Download in der App.
+        val installIntent = (
+            context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
+            )
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(EXTRA_SHOW_UPDATE, true)
+            .putExtra(EXTRA_AUTO_INSTALL, true)
+        val installPending = PendingIntent.getActivity(
+            context,
+            1,
+            installIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+        val bigText = buildString {
+            append("Version $newVersion ist da")
+            if (release.critical) append(" · Pflicht-Update")
+            append(sizeText)
+            append("\n")
+            append(release.name?.takeIf { it.isNotBlank() } ?: "Neue Version der McAffen-App")
+            val notes = release.notes
+                ?.lineSequence()
+                ?.filter { it.isNotBlank() && !it.startsWith("[kritisch]") }
+                ?.take(3)
+                ?.joinToString("\n") { "• " + it.trim().trimStart('-', '*', '#', ' ').take(120) }
+            if (!notes.isNullOrBlank()) append("\n").append(notes)
+        }
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.mcaffen_logo)
-            .setContentTitle(if (release.critical) "Kritisches Update: ${release.tagName}" else "Update verfügbar: ${release.tagName}")
-            .setContentText(release.name ?: "Eine neue Version der McAffen-App ist draußen.")
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setSmallIcon(R.drawable.ic_stat_update)
+            .setColor(0xFF3F7F32.toInt())
+            .setContentTitle(
+                if (release.critical) {
+                    "Pflicht-Update $newVersion"
+                } else {
+                    "Update verfügbar: $newVersion"
+                },
+            )
+            .setContentText("Installiert: $installed · Neu: $newVersion")
+            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
+            .setPriority(if (release.critical) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_SYSTEM)
             .setAutoCancel(true)
+            .setOnlyAlertOnce(false)
+            .setProgress(0, 0, false)
             .setContentIntent(pendingIntent)
+            .addAction(
+                R.drawable.ic_stat_update,
+                "Jetzt installieren",
+                installPending,
+            )
+            .addAction(R.drawable.ic_stat_update, "Später", laterPending(context, release.tagName))
             .build()
         runCatching { manager.notify(NOTIFICATION_ID, notification) }
+    }
+
+    /** Zeigt den Download-Fortschritt direkt in der Benachrichtigung. */
+    fun updateProgress(context: Context, percent: Int) {
+        val manager = NotificationManagerCompat.from(context)
+        ensureChannel(context)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_update)
+            .setColor(0xFF3F7F32.toInt())
+            .setContentTitle("Update wird geladen")
+            .setContentText("$percent % – bitte in der App bleiben")
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setProgress(100, percent.coerceIn(0, 100), false)
+            .setSilent(true)
+            .build()
+        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+    }
+
+    /** Fertig geladen – Hinweis, dass jetzt installiert wird. */
+    fun showReady(context: Context) {
+        val manager = NotificationManagerCompat.from(context)
+        ensureChannel(context)
+        val open = (
+            context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
+            )
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_update)
+            .setColor(0xFF3F7F32.toInt())
+            .setContentTitle("Update bereit")
+            .setContentText("Tippe hier, um die Installation abzuschließen.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    context,
+                    2,
+                    open,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
+            .build()
+        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+    }
+
+    /** Entfernt die Update-Benachrichtigung (z. B. nach erfolgreicher Installation). */
+    fun clear(context: Context) {
+        runCatching { NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID) }
+    }
+
+    private fun laterPending(context: Context, tag: String): PendingIntent {
+        val intent = Intent(context, UpdateDismissReceiver::class.java)
+            .setAction(ACTION_LATER)
+            .putExtra(EXTRA_TAG, tag)
+        return PendingIntent.getBroadcast(
+            context,
+            3,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun formatMegabytes(bytes: Long): String {
+        val mb = bytes / (1024.0 * 1024.0)
+        return if (mb >= 10) "${mb.toInt()} MB" else String.format("%.1f MB", mb)
     }
 
     private fun ensureChannel(context: Context) {
@@ -139,8 +281,11 @@ object UpdateNotifier {
             NotificationChannel(
                 CHANNEL_ID,
                 "McAffen-Updates",
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply { description = "Informiert über neue McAffen-App-Versionen" },
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply {
+                description = "Informiert über neue McAffen-App-Versionen"
+                enableVibration(true)
+            },
         )
     }
 }

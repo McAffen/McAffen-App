@@ -88,6 +88,12 @@ interface McAffenApi {
         @Query("p", encoded = true) path: String = "/ndu/top&sort=waves",
     ): LeaderboardResponse
 
+    /** Rangliste nach einem bestimmten Wert (waves, kills, games, coins). */
+    @GET("web.php")
+    suspend fun getLeaderboardSorted(
+        @Query("p", encoded = true) path: String,
+    ): LeaderboardResponse
+
     /** Serverseitiges Netzwerk-Status-Objekt inkl. Serverliste. */
     @GET("web.php")
     suspend fun getServerStatus(

@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -101,7 +102,16 @@ internal fun LeaderboardScreen(
     bestRank: Int,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    boardSort: String = "waves",
+    boardPlayers: List<PlayerStat> = emptyList(),
+    boardLoading: Boolean = false,
+    onBoardSortChange: (String) -> Unit = {},
 ) {
+    // Die Standardliste kommt aus dem Cache (auch offline); die anderen Werte
+    // werden live geladen. Angezeigt wird immer die aktive Ansicht.
+    val activePlayers = if (boardSort == "waves") players else boardPlayers
+    val activeLoading = loading || boardLoading
+    val players = activePlayers
     var query by remember { mutableStateOf("") }
     val filtered = players.filter { it.name.contains(query, ignoreCase = true) }
     val listState = rememberLazyListState()
@@ -122,7 +132,7 @@ internal fun LeaderboardScreen(
         AnimatedBackdrop(enabled = animationsEnabled)
         PullToRefreshBox(isRefreshing = loading, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
             when {
-                players.isEmpty() && !loading ->
+                players.isEmpty() && !activeLoading ->
                     EmptyState(
                         emoji = "🏆",
                         title = "Rangliste wird geladen",
@@ -131,7 +141,7 @@ internal fun LeaderboardScreen(
                             "Aktualisieren nach unten.",
                         modifier = Modifier.fillMaxSize(),
                     )
-                loading && players.isEmpty() ->
+                activeLoading && players.isEmpty() ->
                     Column(
                         Modifier
                             .fillMaxSize()
@@ -150,6 +160,9 @@ internal fun LeaderboardScreen(
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
+                        item("sorts") {
+                            BoardSortRow(selected = boardSort, onSelect = onBoardSortChange)
+                        }
                         item("search") {
                             SearchField(query = query, onQueryChange = { query = it })
                         }
@@ -701,5 +714,66 @@ internal fun EmptyState(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+    }
+}
+
+/** Werte der Rangliste – entspricht den Sortierungen von `/ndu/top`. */
+internal data class BoardSort(val key: String, val label: String, val unit: String, val emoji: String)
+
+internal val BOARD_SORTS = listOf(
+    BoardSort("waves", "Wellen", "Wellen", "🌊"),
+    BoardSort("kills", "Kills", "Kills", "⚔️"),
+    BoardSort("games", "Spiele", "Spiele", "🎮"),
+    BoardSort("coins", "Coins", "Coins", "🪙"),
+)
+
+/** Segment-Umschalter für die Ranglisten-Werte mit gleitendem Hintergrund. */
+@Composable
+private fun BoardSortRow(selected: String, onSelect: (String) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        BOARD_SORTS.forEach { sort ->
+            val active = sort.key == selected
+            val background by animateColorAsState(
+                targetValue = if (active) MaterialTheme.colorScheme.primary else Color.Transparent,
+                animationSpec = tween(260),
+                label = "sortBackground",
+            )
+            val textColor by animateColorAsState(
+                targetValue = if (active) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                animationSpec = tween(260),
+                label = "sortText",
+            )
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(background)
+                    .clickable { onSelect(sort.key) }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(sort.emoji, fontSize = 13.sp)
+                    Text(
+                        sort.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        color = textColor,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
     }
 }

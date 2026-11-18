@@ -82,6 +82,7 @@ import de.mcaffen.app.data.UpdateCheckScheduler
 import de.mcaffen.app.data.UpdateChecker
 import de.mcaffen.app.data.UpdateConfig
 import de.mcaffen.app.data.UpdateInstaller
+import de.mcaffen.app.data.UpdateNotifier
 import de.mcaffen.app.model.AppRelease
 import de.mcaffen.app.ui.components.BootSplash
 import de.mcaffen.app.ui.components.BrandLogo
@@ -111,10 +112,67 @@ class McAffenViewModel(
     val legalCache = repository.legalCache
     private val _loading = MutableStateFlow(false)
     val loading = _loading.asStateFlow()
+
+    /** Ranglisten-Ansicht: waves, kills, games, coins (Quelle: /ndu/top). */
+    private val _boardSort = MutableStateFlow("waves")
+    val boardSort = _boardSort.asStateFlow()
+
+    private val _boardPlayers = MutableStateFlow<List<de.mcaffen.app.model.PlayerStat>>(emptyList())
+    val boardPlayers = _boardPlayers.asStateFlow()
+
+    private val _boardLoading = MutableStateFlow(false)
+    val boardLoading = _boardLoading.asStateFlow()
+
+    /**
+     * Wechselt die Ranglisten-Ansicht. „waves“ ist die Standardliste aus dem
+     * Cache (auch offline), die anderen Werte kommen live von der API.
+     */
+    fun selectBoard(sort: String) {
+        if (sort == _boardSort.value && _boardPlayers.value.isNotEmpty()) return
+        _boardSort.value = sort
+        if (sort == "waves") {
+            _boardPlayers.value = emptyList()
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            _boardLoading.value = true
+            runCatching { repository.leaderboard(sort) }
+                .onSuccess { _boardPlayers.value = it }
+                .onFailure {
+                    _boardPlayers.value = emptyList()
+                    _error.value = "Rangliste „$sort“ konnte nicht geladen werden."
+                }
+            _boardLoading.value = false
+        }
+    }
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
     private val _update = MutableStateFlow<AppRelease?>(null)
     val update = _update.asStateFlow()
+
+    /** Aus der Benachrichtigung geöffnet: sofort herunterladen und installieren. */
+    private val _autoInstall = MutableStateFlow(false)
+    val autoInstall = _autoInstall.asStateFlow()
+
+    /**
+     * Von der Update-Benachrichtigung aufgerufen: prüft, ob wirklich ein neueres
+     * Release vorliegt, und öffnet den Dialog (mit [install] direkt den Download).
+     */
+    fun handleNotificationOpen(context: Context, install: Boolean) {
+        viewModelScope.launch {
+            val release = runCatching { UpdateChecker.fetchLatest() }.getOrNull() ?: return@launch
+            if (!UpdateConfig.isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)) {
+                UpdateNotifier.clear(context)
+                _updateNotice.value = "Du hast bereits die neueste Version (${BuildConfig.VERSION_NAME})."
+                return@launch
+            }
+            _update.value = release
+            if (install) {
+                _autoInstall.value = true
+                startUpdate(context, release)
+            }
+        }
+    }
     private val _download = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val download = _download.asStateFlow()
 
@@ -216,6 +274,7 @@ class McAffenViewModel(
                     url = apkUrl,
                 ) { progress ->
                     _download.value = DownloadState.Downloading(progress)
+                    UpdateNotifier.updateProgress(context.applicationContext, progress)
                 }
             }.fold(
                 onSuccess = { apk ->
@@ -224,6 +283,9 @@ class McAffenViewModel(
                         DownloadState.Ready(apk)
                     } else {
                         DownloadState.Blocked(verification)
+                    }
+                    if (verification == ApkVerification.Ok) {
+                        UpdateNotifier.showReady(context.applicationContext)
                     }
                 },
                 onFailure = { error ->
@@ -271,11 +333,27 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     val onboardingDone by settings.onboardingDone.collectAsStateWithLifecycle()
     val updateChecksEnabled by settings.updateChecksEnabled.collectAsStateWithLifecycle()
     val lastUpdateCheck by settings.lastUpdateCheck.collectAsStateWithLifecycle()
+    val boardSort by vm.boardSort.collectAsStateWithLifecycle()
+    val boardPlayers by vm.boardPlayers.collectAsStateWithLifecycle()
+    val boardLoading by vm.boardLoading.collectAsStateWithLifecycle()
     val animationsEnabled by settings.animationsEnabled.collectAsStateWithLifecycle()
     val darkMode by settings.darkMode.collectAsStateWithLifecycle()
     val colorName by settings.color.collectAsStateWithLifecycle()
     val hapticsEnabled by settings.hapticsEnabled.collectAsStateWithLifecycle()
     val compactMode by settings.compactMode.collectAsStateWithLifecycle()
+
+    // Aus der Update-Benachrichtigung geöffnet? Dann direkt den Dialog zeigen
+    // (und bei „Jetzt installieren“ sofort den Download starten).
+    LaunchedEffect(Unit) {
+        val activity = context as? android.app.Activity
+        val intent = activity?.intent
+        if (intent?.getBooleanExtra(UpdateNotifier.EXTRA_SHOW_UPDATE, false) == true) {
+            val install = intent.getBooleanExtra(UpdateNotifier.EXTRA_AUTO_INSTALL, false)
+            intent.removeExtra(UpdateNotifier.EXTRA_SHOW_UPDATE)
+            intent.removeExtra(UpdateNotifier.EXTRA_AUTO_INSTALL)
+            vm.handleNotificationOpen(context, install)
+        }
+    }
 
     var selectedTab by rememberSaveable { mutableStateOf(Tab.LEADERBOARD) }
     var isMenuExpanded by remember { mutableStateOf(false) }
@@ -530,7 +608,14 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         loading = loading,
                         animationsEnabled = animationsEnabled,
                         bestRank = bestRank,
-                        onRefresh = vm::refresh,
+                        onRefresh = {
+                            vm.refresh()
+                            if (boardSort != "waves") vm.selectBoard(boardSort)
+                        },
+                        boardSort = boardSort,
+                        boardPlayers = boardPlayers,
+                        boardLoading = boardLoading,
+                        onBoardSortChange = vm::selectBoard,
                     )
                     Tab.VOTES -> VoteScreen(
                         players = players,

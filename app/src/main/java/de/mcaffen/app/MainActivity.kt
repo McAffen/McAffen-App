@@ -32,10 +32,23 @@ class MainActivity : ComponentActivity() {
                 android.graphics.Color.TRANSPARENT,
             ),
         )
+        // Android 13+: Benachrichtigungen einmalig erlauben lassen, damit die
+        // Update-Meldung wirklich ankommt.
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            runCatching {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7)
+            }
+        }
         container = AppContainer(applicationContext)
         // Regelmäßige Hintergrund-Update-Prüfung einrichten (oder abmelden,
         // wenn automatische Prüfungen ausgeschaltet sind).
         UpdateCheckScheduler.update(applicationContext)
+        // Zusätzlich eine sofortige Prüfung: liegt ein neues Release vor, kommt
+        // die Update-Benachrichtigung, ohne dass man die App öffnen muss.
+        UpdateCheckScheduler.checkNow(applicationContext)
         setContent {
             val darkMode by container.settings.darkMode.collectAsStateWithLifecycle()
             val color by container.settings.color.collectAsStateWithLifecycle()

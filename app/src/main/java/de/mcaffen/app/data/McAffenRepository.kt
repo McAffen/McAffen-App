@@ -4,6 +4,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import de.mcaffen.app.model.AppRelease
+import de.mcaffen.app.model.PlayerStat
 import de.mcaffen.app.model.ServerInfo
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.network.McAffenApi
@@ -61,6 +62,19 @@ class McAffenRepository(
         url: String,
         onProgress: (Int) -> Unit = {},
     ): File = UpdateInstaller.download(context, client, url, onProgress)
+
+    /**
+     * Lädt die Rangliste für einen bestimmten Wert (waves, kills, games, coins)
+     * und liefert die Spieler direkt zurück – ohne den Room-Cache zu verändern,
+     * damit die Haupt-Rangliste davon unberührt bleibt.
+     */
+    suspend fun leaderboard(sort: String): List<PlayerStat> {
+        val response = api.getLeaderboardSorted("/ndu/top&sort=" + sort)
+        return response.list
+            .filter { it.name.isNotBlank() }
+            .sortedByDescending { it.points }
+            .map { PlayerStat(it.name, it.points.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(), null) }
+    }
 
     suspend fun refresh() = coroutineScope {
         // Rangliste und Status liegen auf demselben Endpunkt; jeder Teil wird

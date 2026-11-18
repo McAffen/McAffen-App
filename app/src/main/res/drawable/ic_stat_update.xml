@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Weißes Statusleisten-Symbol für Benachrichtigungen (Android blendet Farbe aus).
+  Ein schlichtes Affen-Gesicht: Ohren, Kopf, Augen, Maul.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <!-- Ohren -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M3.2,9.4m-2.1,0a2.1,2.1 0 1,0 4.2,0a2.1,2.1 0 1,0 -4.2,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M20.8,9.4m-2.1,0a2.1,2.1 0 1,0 4.2,0a2.1,2.1 0 1,0 -4.2,0" />
+    <!-- Kopf -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,4.6c-4.3,0 -7.6,3.1 -7.6,7.1c0,4.3 3.3,7.7 7.6,7.7s7.6,-3.4 7.6,-7.7C19.6,7.7 16.3,4.6 12,4.6z" />
+    <!-- Maul (ausgespart) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00000000"
+        android:pathData="M12,11.4m-3.1,0a3.1,2.4 0 1,0 6.2,0a3.1,2.4 0 1,0 -6.2,0" />
+    <!-- Augen -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M9.4,9.1m-1.05,0a1.05,1.05 0 1,0 2.1,0a1.05,1.05 0 1,0 -2.1,0" />
+    <path
+        android:fillColor="#000000"
+        android:pathData="M14.6,9.1m-1.05,0a1.05,1.05 0 1,0 2.1,0a1.05,1.05 0 1,0 -2.1,0" />
+</vector>
