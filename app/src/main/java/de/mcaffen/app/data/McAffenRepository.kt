@@ -109,11 +109,11 @@ class McAffenRepository(
 
         // Vote-Seiten liefert die Website nur eingebettet aus; sie stehen deshalb
         // fest in der App (wie auf mcaffen.de) und werden einmalig gespeichert.
-        if (dao.voteSiteCount() == 0) {
-            dao.saveVoteSites(
-                DefaultVoteSites.ALL.map { VoteSiteEntity(it.site, it.url, it.hours, it.reward) },
-            )
-        }
+        // Immer schreiben (REPLACE), damit Korrekturen an den Seiten auch bei
+        // bereits installierten Apps ankommen – z. B. entfernte, tote Seiten.
+        dao.saveVoteSites(
+            DefaultVoteSites.ALL.map { VoteSiteEntity(it.site, it.url, it.hours, it.reward) },
+        )
     }
 
     /**

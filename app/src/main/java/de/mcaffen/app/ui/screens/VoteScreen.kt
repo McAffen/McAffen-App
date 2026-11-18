@@ -108,8 +108,10 @@ internal fun VoteScreen(
     var celebrate by remember { mutableStateOf(false) }
 
     val player = players.firstOrNull { it.name.equals(searchedName, ignoreCase = true) }
-    val canVote = player != null && name.trim().equals(searchedName, ignoreCase = true)
-    val selectedPlayerName = player?.name
+    // Der Vote-Button braucht nur einen Namen – die Spielerprüfung ist eine
+    // Zusatzinfo. Sonst bleibt der Button tot, wenn der Name (noch) nicht in
+    // der Rangliste steht oder die Rangliste gerade nicht geladen ist.
+    val canVote = name.isNotBlank()
     val canSearch = name.isNotBlank() && players.isNotEmpty()
 
     val readyCount = voteSites.count { site ->
@@ -137,7 +139,7 @@ internal fun VoteScreen(
                             readyCount = readyCount,
                             total = voteSites.size,
                             fraction = readyFraction,
-                            playerName = selectedPlayerName,
+                            playerName = player?.name ?: name.trim().takeIf(String::isNotBlank),
                         )
                     }
                 }
@@ -248,7 +250,8 @@ internal fun VoteScreen(
                     val cooldown = site.hours.coerceAtLeast(1) * 60L * 60L * 1000L
                     val remaining = lastVoted + cooldown - now
                     val readyAgain = lastVoted <= 0L || remaining <= 0
-                    val voteUri = selectedPlayerName?.let { playerName -> site.url.toVoteUri(playerName) }
+                    // Name aus dem Feld (nicht der Ranglisten-Treffer) → Vote-Seite.
+                    val voteUri = site.url.toVoteUri(name.trim())
                     Reveal(visible = animationsEnabled, fromScale = 0.97f) {
                         VoteSiteCard(
                             site = site,
@@ -467,7 +470,7 @@ private fun VoteSiteCard(
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 Text(
-                    "Spieler prüfen, um diese Seite zu öffnen.",
+                    "Gib oben deinen Minecraft-Namen ein, dann öffnen sich die Vote-Seiten.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

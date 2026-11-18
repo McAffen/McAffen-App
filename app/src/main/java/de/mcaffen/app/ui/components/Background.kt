@@ -112,6 +112,22 @@ fun AnimatedBackdrop(
                 .fillMaxSize()
                 .graphicsLayer { alpha = if (enabled) 0.10f + 0.05f * t else 0.10f },
         )
+        // Zusätzliche Tiefe: feine Schräglinien + ein dritter, langsam atmender
+        // Farbschein in der Akzentfarbe des Themas.
+        DiagonalStreaks(Modifier.fillMaxSize(), enabled = enabled)
+        Box(
+            Modifier
+                .size(240.dp)
+                .offset(x = 60.dp + (t * 40).dp, y = (-40).dp + (t * 90).dp)
+                .graphicsLayer {
+                    scaleX = 1.2f * b
+                    scaleY = 1.2f * b
+                    alpha = 0.22f
+                }
+                .blur(110.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.tertiary),
+        )
         FloatingParticles(Modifier.fillMaxSize(), enabled = enabled)
     }
 }

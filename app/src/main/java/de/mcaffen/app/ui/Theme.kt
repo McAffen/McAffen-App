@@ -28,6 +28,10 @@ object ThemeOptions {
     const val COLOR_ORANGE = "ORANGE"
     const val COLOR_RED = "RED"
     const val COLOR_TEAL = "TEAL"
+    const val COLOR_PINK = "PINK"
+    const val COLOR_CYAN = "CYAN"
+    const val COLOR_AMBER = "AMBER"
+    const val COLOR_INDIGO = "INDIGO"
 
     val darkModes = listOf(
         DARK_SYSTEM to "System",
@@ -42,6 +46,10 @@ object ThemeOptions {
         COLOR_ORANGE to "Orange",
         COLOR_RED to "Rot",
         COLOR_TEAL to "Türkis",
+        COLOR_PINK to "Pink",
+        COLOR_CYAN to "Cyan",
+        COLOR_AMBER to "Bernstein",
+        COLOR_INDIGO to "Indigo",
     )
 
     /** Akzentfarbe einer Farbwelt – für die Vorschau-Punkte in den Einstellungen. */
@@ -51,6 +59,10 @@ object ThemeOptions {
         COLOR_ORANGE -> Color(0xFFC96A12)
         COLOR_RED -> Color(0xFFB3312A)
         COLOR_TEAL -> Color(0xFF00796B)
+        COLOR_PINK -> Color(0xFFB3306E)
+        COLOR_CYAN -> Color(0xFF00707F)
+        COLOR_AMBER -> Color(0xFF9A6B00)
+        COLOR_INDIGO -> Color(0xFF3A4BA8)
         else -> Color(0xFF3F7F32)
     }
 }
@@ -347,6 +359,71 @@ fun blend(a: Color, b: Color, t: Float): Color {
     )
 }
 
+/**
+ * Die zusätzlichen Farbwelten entstehen aus einer kleinen Tabelle statt aus
+ * handgeschriebenen Farbschemata: Der Akzent bestimmt das Farbschema, der
+ * Hintergrund wird leicht in seine Richtung getönt. So bleiben Kontraste und
+ * Flächenverhältnisse bei jeder Welt gleich – nur der Charakter ändert sich.
+ */
+private data class WorldSpec(
+    val lightPrimary: Color,
+    val lightSecondary: Color,
+    val darkPrimary: Color,
+    val darkSecondary: Color,
+)
+
+private val WORLD_SPECS: Map<String, WorldSpec> = mapOf(
+    ThemeOptions.COLOR_PINK to WorldSpec(
+        Color(0xFFB3306E), Color(0xFF9A4E7E),
+        Color(0xFFFFAFD2), Color(0xFFE5B3D8),
+    ),
+    ThemeOptions.COLOR_CYAN to WorldSpec(
+        Color(0xFF00707F), Color(0xFF2C6E9B),
+        Color(0xFF6FD8E8), Color(0xFF9FCBF5),
+    ),
+    ThemeOptions.COLOR_AMBER to WorldSpec(
+        Color(0xFF8A6100), Color(0xFF9A5B2C),
+        Color(0xFFFFC85C), Color(0xFFF2B98A),
+    ),
+    ThemeOptions.COLOR_INDIGO to WorldSpec(
+        Color(0xFF3A4BA8), Color(0xFF6A4FA0),
+        Color(0xFFB7C2FF), Color(0xFFD3BDFF),
+    ),
+)
+
+/** Baut aus einer [WorldSpec] ein vollständiges helles/dunkles Farbschema. */
+private fun worldScheme(spec: WorldSpec, dark: Boolean): ColorScheme {
+    val base = if (dark) McAffenDarkColorScheme else McAffenLightColorScheme
+    val primary = if (dark) spec.darkPrimary else spec.lightPrimary
+    val secondary = if (dark) spec.darkSecondary else spec.lightSecondary
+    val container = if (dark) {
+        blend(base.surface, primary, 0.30f)
+    } else {
+        blend(Color.White, primary, 0.18f)
+    }
+    val background = if (dark) {
+        blend(Color(0xFF0E120D), primary, 0.06f)
+    } else {
+        blend(Color(0xFFF7FAF3), primary, 0.04f)
+    }
+    return base.copy(
+        primary = primary,
+        onPrimary = if (dark) blend(Color.Black, primary, 0.12f) else Color.White,
+        primaryContainer = container,
+        onPrimaryContainer = if (dark) blend(Color.White, primary, 0.15f) else blend(Color.Black, primary, 0.35f),
+        secondary = secondary,
+        secondaryContainer = if (dark) blend(base.surfaceContainerHigh, secondary, 0.45f) else blend(Color.White, secondary, 0.24f),
+        onSecondaryContainer = if (dark) blend(Color.White, secondary, 0.20f) else blend(Color.Black, secondary, 0.40f),
+        background = background,
+        surface = if (dark) blend(background, Color.White, 0.02f) else blend(background, Color.White, 0.55f),
+        surfaceContainerLowest = if (dark) blend(background, Color.Black, 0.35f) else Color.White,
+        surfaceContainerLow = if (dark) blend(background, Color.White, 0.03f) else blend(background, Color.White, 0.35f),
+        surfaceContainer = if (dark) blend(background, Color.White, 0.06f) else blend(background, Color.White, 0.20f),
+        surfaceContainerHigh = if (dark) blend(background, Color.White, 0.09f) else blend(background, Color.White, 0.10f),
+        surfaceContainerHighest = if (dark) blend(background, Color.White, 0.12f) else blend(background, Color.White, 0.02f),
+    )
+}
+
 @Composable
 fun McAffenTheme(
     color: String = ThemeOptions.COLOR_GREEN,
@@ -364,7 +441,8 @@ fun McAffenTheme(
         ThemeOptions.COLOR_ORANGE -> if (dark) OrangeDark else OrangeLight
         ThemeOptions.COLOR_RED -> if (dark) RedDark else RedLight
         ThemeOptions.COLOR_TEAL -> if (dark) TealDark else TealLight
-        else -> if (dark) McAffenDarkColorScheme else McAffenLightColorScheme
+        else -> WORLD_SPECS[color]?.let { worldScheme(it, dark) }
+            ?: if (dark) McAffenDarkColorScheme else McAffenLightColorScheme
     }
     val brand = scheme.primary
     val extra = McAffenColors(
