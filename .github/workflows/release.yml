@@ -48,8 +48,17 @@ jobs:
           encoded="${RELEASE_KEYSTORE_BASE64#RELEASE_KEYSTORE_BASE64=}"
           encoded="${encoded#\"}"
           encoded="${encoded%\"}"
-          encoded="$(printf '%s' "$encoded" | sed 's/\\n//g' | tr -d '\r\n\t ')"
-          printf '%s' "$encoded" | base64 --decode --ignore-garbage > signing/mcaffen-release.keystore
+          encoded="$(printf '%s' "$encoded" | sed 's/\\n//g' | tr -cd 'A-Za-z0-9+/=')"
+          remainder=$((${#encoded} % 4))
+          if [[ "$remainder" -eq 1 ]]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 hat eine ungültige Länge."
+            exit 1
+          elif [[ "$remainder" -eq 2 ]]; then
+            encoded="${encoded}=="
+          elif [[ "$remainder" -eq 3 ]]; then
+            encoded="${encoded}="
+          fi
+          printf '%s' "$encoded" | base64 --decode > signing/mcaffen-release.keystore
           size="$(stat -c%s signing/mcaffen-release.keystore)"
           echo "Keystore bereitgestellt ($size Bytes)."
           if [[ "$size" -lt 1000 ]]; then
