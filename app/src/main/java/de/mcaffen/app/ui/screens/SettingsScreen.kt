@@ -104,6 +104,7 @@ internal fun SettingsScreen(
     updateChecksEnabled: Boolean,
     onUpdateChecksChange: (Boolean) -> Unit,
     onCheckForUpdate: () -> Unit,
+    onInstallUpdate: () -> Unit,
     lastUpdateCheck: Long,
     onReplayIntro: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -275,6 +276,23 @@ internal fun SettingsScreen(
                             modifier = Modifier.weight(1f),
                         )
                         TextButton(onClick = onCheckForUpdate) { Text("Jetzt prüfen") }
+                    }
+                    // Manueller Weg zum Update: prüfen, herunterladen und in der
+                    // App installieren – ohne Umweg über GitHub.
+                    OutlinedButton(
+                        onClick = onInstallUpdate,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.SystemUpdate,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Nach Update suchen & installieren")
                     }
                 }
             }

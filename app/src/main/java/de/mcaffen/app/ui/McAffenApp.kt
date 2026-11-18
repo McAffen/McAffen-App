@@ -79,6 +79,7 @@ import de.mcaffen.app.data.ApkVerification
 import de.mcaffen.app.data.McAffenRepository
 import de.mcaffen.app.data.SettingsStore
 import de.mcaffen.app.data.UpdateCheckScheduler
+import de.mcaffen.app.data.UpdateChecker
 import de.mcaffen.app.data.UpdateConfig
 import de.mcaffen.app.data.UpdateInstaller
 import de.mcaffen.app.model.AppRelease
@@ -173,6 +174,29 @@ class McAffenViewModel(
         }
     }
 
+    /**
+     * Manuell ausgelöster Update-Weg (Einstellungen): prüft sofort, lädt die APK
+     * und startet anschließend die Installation – ohne Browser und ohne GitHub.
+     * Ist die App schon aktuell, gibt es eine kurze Rückmeldung statt eines Dialogs.
+     */
+    fun checkAndInstall(context: Context) {
+        viewModelScope.launch {
+            _updateNotice.value = "Suche nach Updates …"
+            val release = runCatching { UpdateChecker.fetchLatest() }.getOrNull()
+            if (release == null) {
+                _updateNotice.value = "Update-Prüfung fehlgeschlagen – bitte Internetverbindung prüfen."
+                return@launch
+            }
+            if (!UpdateConfig.isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)) {
+                _updateNotice.value = "Du hast bereits die neueste Version (${BuildConfig.VERSION_NAME})."
+                return@launch
+            }
+            _updateNotice.value = null
+            _update.value = release
+            startUpdate(context, release)
+        }
+    }
+
     fun dismissUpdate() {
         _update.value = null
         if (_download.value !is DownloadState.Ready) _download.value = DownloadState.Idle
@@ -182,8 +206,8 @@ class McAffenViewModel(
      * In-App-Update: lädt die neue APK herunter, verifiziert sie (Größe, Paket,
      * Signatur) und startet anschließend den System-Install-Prompt.
      */
-    fun startUpdate(context: Context) {
-        val apkUrl = _update.value?.assetUrl ?: return
+    fun startUpdate(context: Context, release: AppRelease? = _update.value) {
+        val apkUrl = release?.assetUrl ?: return
         viewModelScope.launch(Dispatchers.IO) {
             _download.value = DownloadState.Downloading(0)
             runCatching {
@@ -314,7 +338,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
             downloadState = downloadState,
             canInstall = UpdateInstaller.canInstallDirectly(context),
             onInstall = { vm.startUpdate(context) },
-            onEnableInstalls = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl))) },
+            onEnableInstalls = { UpdateInstaller.openUnknownSourcesSettings(context) },
             onRetry = { vm.startUpdate(context) },
             onOpenGitHub = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl))) },
             onOpenGitHubAndSkip = {
@@ -550,6 +574,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                             UpdateCheckScheduler.update(context)
                         },
                         onCheckForUpdate = { vm.checkForUpdate(force = true) },
+                        onInstallUpdate = { vm.checkAndInstall(context) },
                         lastUpdateCheck = lastUpdateCheck,
                         onReplayIntro = settings::replayOnboarding,
                         onOpenAbout = { showAbout = true },

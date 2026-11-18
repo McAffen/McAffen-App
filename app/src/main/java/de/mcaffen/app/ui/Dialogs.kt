@@ -163,14 +163,14 @@ internal fun UpdateDialog(
                         when (state.verification) {
                             ApkVerification.Corrupt ->
                                 "Die heruntergeladene Datei ist unvollständig oder beschädigt. " +
-                                    "Versuche es lieber direkt über GitHub."
+                                    "Bitte erneut herunterladen."
                             ApkVerification.Incompatible ->
                                 "Diese APK passt nicht als Update über die installierte Version " +
-                                    "(Paket-ID oder Version). Lade sie über GitHub …"
+                                    "(Paket-ID oder Version). Bitte erneut prüfen."
                             else ->
                                 "Die APK ist mit einem anderen Schlüssel signiert als die " +
                                     "installierte App. Android erlaubt die Überinstallation dann " +
-                                    "nicht. Öffne das Release auf GitHub, um sie zu laden."
+                                    "nicht. Hier hilft nur eine Neuinstallation der App."
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
@@ -194,13 +194,13 @@ internal fun UpdateDialog(
                     failed != null || blocked?.verification == ApkVerification.Corrupt ->
                         Button(onClick = onRetry) { Text("Erneut versuchen") }
                     !hasApk || (blocked != null && blocked.verification != ApkVerification.Corrupt) ->
-                        Button(onClick = onOpenGitHubAndSkip) { Text("Auf GitHub laden") }
+                        Button(onClick = onRetry) { Text("Jetzt herunterladen") }
                     !canInstall -> Button(onClick = onEnableInstalls) { Text("Installation erlauben") }
                     else -> Button(onClick = onInstall) { Text("Jetzt aktualisieren") }
                 }
-                if (hasApk && !downloading) {
-                    TextButton(onClick = onOpenGitHub) { Text("Release auf GitHub ansehen") }
-                }
+                // GitHub nur noch als Notfallweg – der normale Weg ist der
+                // direkte Download und die Installation in der App.
+                TextButton(onClick = onOpenGitHub) { Text("Notfall: Release auf GitHub öffnen") }
             }
         },
         dismissButton = {
