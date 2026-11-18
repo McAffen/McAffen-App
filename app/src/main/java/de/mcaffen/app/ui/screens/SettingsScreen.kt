@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Gavel
@@ -50,6 +51,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -58,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -109,6 +112,8 @@ internal fun SettingsScreen(
     onReplayIntro: () -> Unit,
     onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
+    voteBrowser: String = de.mcaffen.app.data.VoteBrowser.IN_APP,
+    onVoteBrowserChange: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val notifPermissionLauncher = rememberLauncherForActivityResult(
@@ -293,6 +298,53 @@ internal fun SettingsScreen(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text("Nach Update suchen & installieren")
+                    }
+                }
+            }
+
+            // Vote-Links: eingebauter Browser oder normaler Browser.
+            item("votebrowser") {
+                SettingsCard(
+                    title = "Vote-Links öffnen",
+                    icon = Icons.Default.Language,
+                ) {
+                    Text(
+                        "Der eingebaute Browser bleibt in der App – mit „Zurück“ landest du " +
+                            "wieder in der Vote-Liste. Der normale Browser öffnet einen eigenen Tab.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        listOf(
+                            de.mcaffen.app.data.VoteBrowser.IN_APP to "In der App",
+                            de.mcaffen.app.data.VoteBrowser.EXTERNAL to "Normaler Browser",
+                        ).forEach { (mode, label) ->
+                            val active = voteBrowser == mode
+                            Surface(
+                                onClick = { onVoteBrowserChange(mode) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(11.dp),
+                                color = if (active) MaterialTheme.colorScheme.primary
+                                else Color.Transparent,
+                            ) {
+                                Text(
+                                    label,
+                                    modifier = Modifier.padding(vertical = 9.dp),
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (active) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }

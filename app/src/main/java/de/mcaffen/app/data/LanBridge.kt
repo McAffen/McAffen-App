@@ -25,8 +25,28 @@ object LanBridge {
     const val HOST: String = "bedrock.mcaffen.de"
     const val PORT: Int = 19132
 
+    /** IP-Adresse des aktiven WLAN-Netzes (über ConnectivityManager, ohne Sonderrechte). */
+    private fun wifiAddressFromConnectivity(context: Context): String? = runCatching {
+        val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+            ?: return@runCatching null
+        val network = cm.activeNetwork ?: return@runCatching null
+        val caps = cm.getNetworkCapabilities(network) ?: return@runCatching null
+        val isWifi = caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+        if (!isWifi) return@runCatching null
+        val props = cm.getLinkProperties(network) ?: return@runCatching null
+        props.linkAddresses
+            .asSequence()
+            .map { it.address }
+            .filterIsInstance<java.net.Inet4Address>()
+            .firstOrNull { !it.isLoopbackAddress }
+            ?.hostAddress
+    }.getOrNull()
+
     /** Eigene IPv4-Adresse im WLAN – das ist die Adresse, die die Konsole anspricht. */
     fun localAddress(context: Context): String? {
+        // 1. Weg (zuverlässig ab Android 12): aktives Netz über ConnectivityManager.
+        wifiAddressFromConnectivity(context)?.let { return it }
+        // 2. Weg: WifiManager (ältere Versionen).
         runCatching {
             @Suppress("DEPRECATION")
             val wifi = context.applicationContext
@@ -45,7 +65,7 @@ object LanBridge {
                 if (formatted != "0.0.0.0") return formatted
             }
         }
-        // Fallback: Netzwerk-Schnittstellen durchsuchen (funktioniert auch ohne WLAN-Rechte).
+        // 3. Weg: Netzwerk-Schnittstellen durchsuchen (funktioniert auch ohne WLAN-Rechte).
         return runCatching {
             Collections.list(NetworkInterface.getNetworkInterfaces())
                 .asSequence()
@@ -57,15 +77,20 @@ object LanBridge {
         }.getOrNull()
     }
 
-    /** Ist das Gerät im WLAN (nicht mobil) unterwegs? */
+    /**
+     * Ist das Gerät gerade in einem WLAN? Geprüft über das aktive Netz
+     * (zuverlässig) mit Rückfall auf eine private IPv4-Adresse.
+     */
     fun isOnWifi(context: Context): Boolean {
-        return runCatching {
-            @Suppress("DEPRECATION")
-            val wifi = context.applicationContext
-                .getSystemService(Context.WIFI_SERVICE) as? WifiManager
-            @Suppress("DEPRECATION")
-            wifi?.isWifiEnabled == true && localAddress(context) != null
+        val viaConnectivity = runCatching {
+            val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+            val network = cm?.activeNetwork
+            val caps = network?.let { cm.getNetworkCapabilities(it) }
+            caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
         }.getOrDefault(false)
+        if (viaConnectivity) return true
+        // Rückfall: lokale 192.168.x / 10.x-Adresse gilt als WLAN.
+        return localAddress(context) != null
     }
 
     /**

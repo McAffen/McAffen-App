@@ -38,6 +38,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -492,8 +496,19 @@ private fun MessageCard(message: String) {
 @Composable
 private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
     val context = LocalContext.current
-    val localIp = remember { LanBridge.localAddress(context) }
-    val onWifi = remember { LanBridge.isOnWifi(context) }
+    // Bei jedem Zurückkehren in die App neu prüfen: WLAN kann sich ändern,
+    // remember allein würde den alten Wert (z. B. "nicht im WLAN") festhalten.
+    var netTick by remember { mutableStateOf(0) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) netTick++
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    val localIp = remember(netTick) { LanBridge.localAddress(context) }
+    val onWifi = remember(netTick) { LanBridge.isOnWifi(context) }
     var expanded by remember { mutableStateOf(false) }
 
     SoftCard(

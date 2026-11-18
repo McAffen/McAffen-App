@@ -357,6 +357,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     val boardSort by vm.boardSort.collectAsStateWithLifecycle()
     val boardPlayers by vm.boardPlayers.collectAsStateWithLifecycle()
     val boardLoading by vm.boardLoading.collectAsStateWithLifecycle()
+    val voteBrowser by settings.voteBrowser.collectAsStateWithLifecycle()
     val boardResult by vm.boardResult.collectAsStateWithLifecycle()
     val animationsEnabled by settings.animationsEnabled.collectAsStateWithLifecycle()
     val darkMode by settings.darkMode.collectAsStateWithLifecycle()
@@ -694,6 +695,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         loading = loading,
                         animationsEnabled = animationsEnabled,
                         onRefresh = vm::refresh,
+                        browserMode = voteBrowser,
                     )
                     Tab.STATUS -> StatusScreen(
                         status = status,
@@ -730,6 +732,8 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         lastUpdateCheck = lastUpdateCheck,
                         onReplayIntro = settings::replayOnboarding,
                         onOpenAbout = { showAbout = true },
+                        voteBrowser = voteBrowser,
+                        onVoteBrowserChange = settings::setVoteBrowser,
                     )
                 }
             }

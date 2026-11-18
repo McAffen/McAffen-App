@@ -60,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.mcaffen.app.model.PlayerStat
+import de.mcaffen.app.data.VoteBrowser
 import de.mcaffen.app.model.VoteSite
 import de.mcaffen.app.ui.McAffenBrand
 import de.mcaffen.app.ui.VOTE_COOLDOWN_MS
@@ -94,6 +95,7 @@ internal fun VoteScreen(
     animationsEnabled: Boolean,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    browserMode: String = de.mcaffen.app.data.VoteBrowser.IN_APP,
 ) {
     val context = LocalContext.current
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -262,7 +264,7 @@ internal fun VoteScreen(
                             canVote = canVote && voteUri != null,
                             onVote = {
                                 onMarkVoted(site.site)
-                                voteUri?.let { context.startActivity(Intent(Intent.ACTION_VIEW, it)) }
+                                voteUri?.let { VoteBrowser.open(context, it, browserMode) }
                                 celebrate = true
                             },
                         )
@@ -271,7 +273,11 @@ internal fun VoteScreen(
                 item("footer") {
                     Text(
                         "Für jede Abstimmung erhältst du Belohnungen wie Vote-Schlüssel und Coins. " +
-                            "Die Vote-Links öffnen sich im Browser.",
+                            if (browserMode == de.mcaffen.app.data.VoteBrowser.EXTERNAL)
+                            "Vote-Links öffnen sich im Browser. Umstellen unter Einstellungen → Vote-Links."
+                        else
+                            "Vote-Links öffnen sich im eingebauten Browser – mit „Zurück“ bist du wieder hier. " +
+                                "Umstellen unter Einstellungen → Vote-Links.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),

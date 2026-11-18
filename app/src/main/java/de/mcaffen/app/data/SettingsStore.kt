@@ -29,6 +29,18 @@ class SettingsStore(context: Context) {
     val lastUpdateCheck = MutableStateFlow(prefs.getLong(KEY_LAST_UPDATE_CHECK, 0L))
 
     /** Wann wurde welche Vote-Seite zuletzt vom Nutzer geöffnet (2-stündige/24-h-Rhythmus der Vote-Seiten). */
+    /**
+     * Wie Vote-Seiten geöffnet werden:
+     * "IN_APP"  = eingebauter Browser (Custom Tab, direkt in der App),
+     * "BROWSER" = der normale Browser des Geräts.
+     */
+    val voteBrowser = MutableStateFlow(prefs.getString(KEY_VOTE_BROWSER, null) ?: "IN_APP")
+
+    fun setVoteBrowser(value: String) {
+        prefs.edit().putString(KEY_VOTE_BROWSER, value).apply()
+        voteBrowser.value = value
+    }
+
     val voteTimes = MutableStateFlow(readVoteTimes())
 
     fun setDarkMode(value: String) {
@@ -135,6 +147,7 @@ class SettingsStore(context: Context) {
 
     private companion object {
         const val PREFS_NAME = "mcaffen_settings"
+        const val KEY_VOTE_BROWSER = "vote_browser"
         const val KEY_DARK_MODE = "dark_mode"
         const val KEY_COLOR = "color"
         const val KEY_PLAYER_NAME = "player_name"
