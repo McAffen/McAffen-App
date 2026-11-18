@@ -2,6 +2,12 @@ package de.mcaffen.app.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -103,16 +109,58 @@ internal fun UpdateDialog(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-                updateNotesText(release.notes)?.let { notes ->
+                val noteLines = updateNoteLines(release.notes)
+                if (noteLines.isNotEmpty()) {
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 160.dp)
+                            .heightIn(max = 200.dp)
                             .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
-                        Text("Was ist neu?", style = MaterialTheme.typography.labelLarge)
-                        Text(notes, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "Was ist neu?",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        // Struktur statt Textblock: Überschriften fett, Punkte mit
+                        // Einzug, Absätze in ruhiger Farbe.
+                        noteLines.forEach { line ->
+                            when (line.kind) {
+                                NoteLine.Kind.HEADING -> Text(
+                                    line.text,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                                NoteLine.Kind.BULLET -> Row(
+                                    Modifier.padding(start = if (line.level > 0) 14.dp else 2.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .padding(top = 6.dp)
+                                            .size(4.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                    )
+                                    Text(
+                                        line.text,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                NoteLine.Kind.DIVIDER -> HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                                NoteLine.Kind.PARAGRAPH -> Text(
+                                    line.text,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
                 Text(

@@ -44,11 +44,53 @@ internal fun updateNotesText(notes: String?): String? {
         .replace(Regex("!\\[[^\\]]*\\]\\([^)]*\\)"), "") // Markdown-Bilder
         .replace(Regex("\\[([^\\]]+)\\]\\([^)]*\\)"), "$1") // [Link](url) → Text
         .replace("**", "")
+        .replace("`", "") // Inline-Code-Ticks
         .split('\n')
         .joinToString("\n") { line -> line.trimStart('#').trim() }
         .replace(Regex("\\n{3,}"), "\n\n")
         .trim()
         .takeIf(String::isNotBlank)
+}
+
+/** Eine Zeile der Release-Notes, schon in ihre Rolle übersetzt. */
+internal data class NoteLine(
+    val text: String,
+    val kind: Kind,
+    val level: Int = 0,
+) {
+    enum class Kind { HEADING, BULLET, PARAGRAPH, DIVIDER }
+}
+
+/**
+ * Zerlegt die Release-Notes in strukturierte Zeilen, damit der Dialog sie
+ * gescheit setzen kann: Überschriften größer und fett, Aufzählungen mit
+ * Punkt und Einzug, Absätze getrennt – statt eines einzigen Textblocks.
+ */
+internal fun updateNoteLines(notes: String?): List<NoteLine> {
+    val cleaned = updateNotesText(notes) ?: return emptyList()
+    val lines = mutableListOf<NoteLine>()
+    cleaned.split('\n').forEach { raw ->
+        val line = raw.trimEnd()
+        val trimmed = line.trim()
+        when {
+            trimmed.isEmpty() -> Unit // Leerzeilen trennen nur die Absätze
+            trimmed.startsWith("---") ->
+                lines += NoteLine("", NoteLine.Kind.DIVIDER)
+            trimmed.startsWith("•") || trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
+                val indent = line.length - line.trimStart().length
+                lines += NoteLine(
+                    trimmed.removePrefix("•").removePrefix("-").removePrefix("*").trim(),
+                    NoteLine.Kind.BULLET,
+                    level = if (indent > 1) 1 else 0,
+                )
+            }
+            // Kurze Zeile ohne Punkt am Ende = Überschrift
+            trimmed.length <= 60 && !trimmed.endsWith(".") && !trimmed.contains(": ") ->
+                lines += NoteLine(trimmed, NoteLine.Kind.HEADING)
+            else -> lines += NoteLine(trimmed, NoteLine.Kind.PARAGRAPH)
+        }
+    }
+    return lines
 }
 
 /** Ersetzt {user}-Platzhalter in Vote-URLs durch den Spielernamen und prüft auf HTTPS. */

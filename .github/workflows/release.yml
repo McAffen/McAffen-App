@@ -121,21 +121,47 @@ jobs:
           echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
           printf 'SHA256 %s  McAffen-release.apk\n' "$checksum" \
             > "dist/McAffen-release.apk.sha256"
+      # Kurze, lesbare Liste der Änderungen seit dem letzten Release – landet im
+      # Release-Text und damit auch im Update-Dialog der App.
+      - name: Änderungen zusammenfassen
+        id: notes
+        run: |
+          set -euo pipefail
+          previous="$(git describe --tags --abbrev=0 'v1.0.*' 2>/dev/null || true)"
+          if [[ -n "$previous" ]]; then
+            range="${previous}..HEAD"
+          else
+            range="HEAD"
+          fi
+          summary="$(git log --no-merges --pretty=format:'- %s' "$range" \
+            | grep -v -i -E 'update readme|^\- Release-Version' | head -n 12 || true)"
+          if [[ -z "$summary" ]]; then
+            summary="- Wartungsupdate ohne inhaltliche Änderungen"
+          fi
+          {
+            echo "summary<<MC_NOTES_EOF"
+            echo "$summary"
+            echo "MC_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
+        env:
+          # Ohne das schreibt Python/Runner Umlaute als "Ã¤" in die Notes.
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+          PYTHONIOENCODING: utf-8
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
           body: |
-            ## Installation
-            Die App aktualisiert sich selbst (In-App-Update) – ein vorheriges Deinstallieren ist **nicht** nötig.
+            ## Was ist neu
+            ${{ steps.notes.outputs.summary }}
 
-            **Integrität prüfen (optional):**
-            - `McAffen-release.apk` ↔ SHA-256: `${{ steps.checksum.outputs.checksum }}`
-            - Die Prüfsummendatei hängt als `McAffen-release.apk.sha256` bei (Linux: `sha256sum -c McAffen-release.apk.sha256`).
-
-            **Hinweis zu Google Play Protect:** Apps außerhalb des Play Stores (Download + Installer-Berechtigung) erhalten häufig automatische Warnungen – hierbei handelt es sich um eine Fehlwarnung. Bei der Installationsabfrage **„Details" → „Trotzdem installieren"** wählen; die SHA-256-Prüfsumme oben belegt die Herkunft von diesem offiziellen Repository.
-          generate_release_notes: true
+            ---
+            **Installation:** Die App lädt das Update selbst herunter und installiert es über die bestehende Version – deine Daten bleiben erhalten.
+            **Prüfsumme:** `${{ steps.checksum.outputs.checksum }}` (auch als `McAffen-release.apk.sha256` dabei)
+          generate_release_notes: false
           target_commitish: ${{ github.sha }}
           files: |
             dist/McAffen-release.apk
