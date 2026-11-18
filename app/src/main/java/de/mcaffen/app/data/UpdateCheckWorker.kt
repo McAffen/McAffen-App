@@ -1,9 +1,11 @@
 package de.mcaffen.app.data
 
 import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import androidx.core.content.ContextCompat
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -204,7 +206,7 @@ object UpdateNotifier {
             )
             .addAction(R.drawable.ic_stat_update, "Später", laterPending(context, release.tagName))
             .build()
-        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+        notifyIfAllowed(context, manager, NOTIFICATION_ID, notification)
     }
 
     /** Zeigt den Download-Fortschritt direkt in der Benachrichtigung. */
@@ -221,7 +223,7 @@ object UpdateNotifier {
             .setProgress(100, percent.coerceIn(0, 100), false)
             .setSilent(true)
             .build()
-        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+        notifyIfAllowed(context, manager, NOTIFICATION_ID, notification)
     }
 
     /** Fertig geladen – Hinweis, dass jetzt installiert wird. */
@@ -248,7 +250,7 @@ object UpdateNotifier {
                 ),
             )
             .build()
-        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+        notifyIfAllowed(context, manager, NOTIFICATION_ID, notification)
     }
 
     /** Entfernt die Update-Benachrichtigung (z. B. nach erfolgreicher Installation). */
@@ -288,4 +290,23 @@ object UpdateNotifier {
             },
         )
     }
+
+/**
+ * Zeigt eine Benachrichtigung, wenn der Nutzer sie erlaubt hat.
+ *
+ * `notify()` wirft ohne POST_NOTIFICATIONS (Android 13+) eine SecurityException,
+ * und Lint wertet den fehlenden Check als Fehler – deshalb hier zentral geprüft.
+ */
+private fun notifyIfAllowed(context: Context, manager: NotificationManagerCompat, id: Int, notification: Notification) {
+    val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
+    if (!granted) return
+    try {
+        manager.notify(id, notification)
+    } catch (_: SecurityException) {
+        // Berechtigung wurde zwischen Prüfung und Aufruf entzogen.
+    }
+}
+
 }
