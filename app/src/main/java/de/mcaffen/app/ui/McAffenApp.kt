@@ -31,9 +31,11 @@ import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Lan
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.HowToVote
+import androidx.compose.material.icons.outlined.Lan
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
@@ -97,6 +99,7 @@ import kotlinx.coroutines.launch
 private enum class Tab(val title: String) {
     LEADERBOARD("Rangliste"),
     VOTES("Voten"),
+    LAN("LAN"),
     STATUS("Status"),
     SETTINGS("Einstellungen"),
 }
@@ -476,6 +479,8 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                                         if (selected) Icons.Filled.EmojiEvents else Icons.Outlined.EmojiEvents
                                     Tab.VOTES ->
                                         if (selected) Icons.Filled.HowToVote else Icons.Outlined.HowToVote
+                                    Tab.LAN ->
+                                        if (selected) Icons.Filled.Lan else Icons.Outlined.Lan
                                     Tab.STATUS ->
                                         if (selected) Icons.Filled.Speed else Icons.Outlined.Speed
                                     Tab.SETTINGS -> Icons.Default.Settings
@@ -542,6 +547,9 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         loading = loading,
                         animationsEnabled = animationsEnabled,
                         onRefresh = vm::refresh,
+                    )
+                    Tab.LAN -> LanScreen(
+                        animationsEnabled = animationsEnabled,
                     )
                     Tab.STATUS -> StatusScreen(
                         status = status,
