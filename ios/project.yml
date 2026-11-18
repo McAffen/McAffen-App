@@ -1,0 +1,39 @@
+# XcodeGen-Projektbeschreibung. Erzeugt McAffen.xcodeproj mit:
+#   brew install xcodegen && cd ios && xcodegen generate
+name: McAffen
+options:
+  bundleIdPrefix: de.mcaffen
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: ""       # Apple Team-ID eintragen (oder in Xcode wählen)
+targets:
+  McAffen:
+    type: application
+    platform: iOS
+    sources:
+      - path: McAffen
+    info:
+      path: McAffen/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.mcaffen.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        # Framework aus dem Kotlin-Multiplatform-Modul einbinden
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS:
+          - "-framework"
+          - "Shared"
+    preBuildScripts:
+      - name: "Kotlin-Framework bauen"
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode

@@ -1,6 +1,13 @@
-# McAffen Android-App
+# McAffen App (Android + iOS)
 
-Compose-MVP für `mcaffen.de` mit Rangliste, Voten und Serverstatus.
+App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
+(Jetpack Compose) und iOS (SwiftUI). Der Datenkern liegt geteilt in `shared/`
+(Kotlin Multiplatform).
+
+- **Android:** `app/` – Jetpack Compose, Room-Cache, In-App-Update
+- **iOS:** `ios/` – SwiftUI, Updates über den App Store
+- **Gemeinsam:** `shared/` – Modelle, API-Zugriff (Ktor), Vote-Seiten, Update-Logik
+- **iOS veröffentlichen:** siehe [docs/ios-release.md](docs/ios-release.md)
 
 ## Architektur  
   
