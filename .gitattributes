@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Workflows immer mit Unix-Zeilenenden – sonst bricht der Runner beim Einlesen ab
+.github/workflows/* text eol=lf
+*.sh text eol=lf
