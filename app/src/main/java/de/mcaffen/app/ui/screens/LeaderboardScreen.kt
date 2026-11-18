@@ -4,11 +4,15 @@ package de.mcaffen.app.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -697,12 +702,27 @@ internal fun EmptyState(
     text: String,
     modifier: Modifier = Modifier,
 ) {
+    // Sanft schwebendes Emoji: macht leere Zustände lebendig statt tot.
+    val float = rememberInfiniteTransition(label = "emptyFloat")
+    val bob by float.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "emptyBob",
+    )
     Column(
         modifier.padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(emoji, fontSize = 40.sp)
+        Text(
+            emoji,
+            fontSize = 40.sp,
+            modifier = Modifier.offset(y = bob.dp),
+        )
         Text(
             title,
             style = MaterialTheme.typography.titleMedium,

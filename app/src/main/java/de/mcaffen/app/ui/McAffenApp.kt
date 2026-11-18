@@ -17,9 +17,14 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -62,6 +67,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -499,12 +505,38 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                     }
                 },
                 title = {
-                    Text(
-                        selectedTab.title,
-                        fontWeight = FontWeight.Black,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            selectedTab.title,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        // Zweite Zeile: live die wichtigste Zahl des Tabs.
+                        val subtitle = when (selectedTab) {
+                            Tab.LEADERBOARD ->
+                                if (players.isEmpty()) "wird geladen …" else "${players.size} Spieler"
+                            Tab.VOTES ->
+                                if (voteSites.isEmpty()) "Seiten laden …" else "${voteSites.size} Vote-Seiten"
+                            Tab.STATUS -> status?.let { "${it.onlinePlayers} online" } ?: "live"
+                            Tab.SETTINGS -> "Version ${BuildConfig.VERSION_NAME}"
+                        }
+                        AnimatedContent(
+                            targetState = subtitle,
+                            transitionSpec = {
+                                (fadeIn(tween(200)) + slideInVertically { it / 2 }) togetherWith
+                                    (fadeOut(tween(150)) + slideOutVertically { -it / 2 })
+                            },
+                            label = "topSubtitle",
+                        ) { text ->
+                            Text(
+                                text,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
+                    }
                 },
                 actions = {
                     val rotation by animateFloatAsState(
@@ -544,10 +576,26 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
             ) {
                 Tab.entries.filter { it != Tab.SETTINGS }.forEach { tab ->
                     val selected = selectedTab == tab
+                    // Icon hebt und senkt sich beim Wechsel – kleine, ruhige Rückmeldung.
+                    val iconScale by animateFloatAsState(
+                        targetValue = if (selected) 1.12f else 1f,
+                        animationSpec = spring(dampingRatio = 0.55f, stiffness = 420f),
+                        label = "navIconScale",
+                    )
+                    val iconOffset by animateDpAsState(
+                        targetValue = if (selected) (-1).dp else 0.dp,
+                        animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
+                        label = "navIconOffset",
+                    )
                     NavigationBarItem(
                         selected = selected,
                         onClick = { selectedTab = tab },
                         icon = {
+                            Box(
+                                Modifier
+                                    .offset(y = iconOffset)
+                                    .scale(iconScale),
+                            ) {
                             Icon(
                                 when (tab) {
                                     Tab.LEADERBOARD ->
@@ -558,8 +606,9 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                                         if (selected) Icons.Filled.Speed else Icons.Outlined.Speed
                                     Tab.SETTINGS -> Icons.Default.Settings
                                 },
-                                contentDescription = tab.title,
-                            )
+                                    contentDescription = tab.title,
+                                )
+                            }
                         },
                         label = {
                             Text(
