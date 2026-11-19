@@ -2,28 +2,119 @@ package de.mcaffen.app.data
 
 import android.content.Context
 import android.net.wifi.WifiManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.net.DatagramPacket
+import java.net.DatagramSocket
 import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.NetworkInterface
+import java.net.SocketTimeoutException
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Hilft beim LAN-Trick für Konsolen (PS5, Switch, Xbox, Smart-TV):
- *
- * Ein Bedrock-Server im Internet (bedrock.mcaffen.de) wird von Konsolen nicht
- * gefunden – die suchen nur im eigenen Netz. Wenn ein Gerät im selben WLAN
- * (z. B. dieses Handy) den Server auf Port 19132 weiterleitet und sich als
- * "Minecraft-Broadcast" meldet, erscheint er auf der Konsole als LAN-Welt.
- *
- * Wichtig und ehrlich: Die App kann das nicht selbst tun. Android erlaubt einer
- * normalen App keinen offenen Port unter 1024 und kein UDP-Broadcast-Listener
- * ohne Systemrechte. Deshalb liefert diese Klasse nur die echten Werte
- * (eigene IP, Ziel, Port) und die Anleitung; das Weiterleiten übernimmt eine
- * Hilfs-App oder ein PC im selben Netz.
+ * Lokaler Bedrock-LAN-Proxy: nimmt die lokalen RakNet-Pakete entgegen,
+ * leitet sie an den öffentlichen Server weiter und beantwortet die LAN-Pings
+ * direkt. Port 19132 liegt über dem privilegierten Bereich und kann von einer
+ * normalen Android-App verwendet werden.
  */
 object LanBridge {
 
     const val HOST: String = "bedrock.mcaffen.de"
     const val PORT: Int = 19132
+    private const val BUFFER_SIZE = 2048
+    private const val RAKNET_MAGIC_SIZE = 16
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val clientAddress = AtomicReference<InetSocketAddress?>()
+    private var proxyJob: Job? = null
+    private var socket: DatagramSocket? = null
+    private var multicastLock: WifiManager.MulticastLock? = null
+
+    @Synchronized
+    fun start(context: Context): Result<Unit> {
+        if (proxyJob?.isActive == true) return Result.success(Unit)
+        return runCatching {
+            val wifi = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            wifi?.createMulticastLock("mcaffen-bedrock-lan")?.also {
+                it.setReferenceCounted(false)
+                it.acquire()
+                multicastLock = it
+            }
+            val localSocket = DatagramSocket(PORT).apply { soTimeout = 250 }
+            socket = localSocket
+            proxyJob = scope.launch {
+                runProxy(localSocket)
+            }
+        }.onFailure {
+            stop()
+        }.map { Unit }
+    }
+
+    @Synchronized
+    fun stop() {
+        proxyJob?.cancel()
+        proxyJob = null
+        socket?.close()
+        socket = null
+        clientAddress.set(null)
+        multicastLock?.let { if (it.isHeld) it.release() }
+        multicastLock = null
+    }
+
+    fun isRunning(): Boolean = proxyJob?.isActive == true
+
+    private suspend fun runProxy(localSocket: DatagramSocket) {
+        val upstream = InetAddress.getByName(HOST)
+        val buffer = ByteArray(BUFFER_SIZE)
+        try {
+            while (scope.isActive && !localSocket.isClosed) {
+                val packet = DatagramPacket(buffer, buffer.size)
+                try {
+                    localSocket.receive(packet)
+                } catch (_: SocketTimeoutException) {
+                    continue
+                }
+                val data = packet.data.copyOfRange(packet.offset, packet.offset + packet.length)
+                if (packet.address == upstream) {
+                    clientAddress.get()?.let { target ->
+                        localSocket.send(DatagramPacket(data, data.size, target))
+                    }
+                } else if (isUnconnectedPing(data)) {
+                    val target = InetSocketAddress(packet.address, packet.port)
+                    clientAddress.set(target)
+                    sendLanPong(localSocket, target)
+                } else {
+                    clientAddress.set(InetSocketAddress(packet.address, packet.port))
+                    localSocket.send(DatagramPacket(data, data.size, upstream, PORT))
+                }
+            }
+        } finally {
+            if (!localSocket.isClosed) localSocket.close()
+        }
+    }
+
+    private fun isUnconnectedPing(data: ByteArray): Boolean =
+        data.size >= 1 + 8 + RAKNET_MAGIC_SIZE && data[0].toInt() and 0xff == 0x01
+
+    private fun sendLanPong(socket: DatagramSocket, target: InetSocketAddress) {
+        val name = "MCPE;McAffen;686;1.21.0;0;100;0;McAffen;Survival;1;19132;19133;"
+            .toByteArray(Charsets.UTF_8)
+        val pong = ByteArray(1 + 8 + 8 + RAKNET_MAGIC_SIZE + 2 + name.size)
+        pong[0] = 0x1c
+        java.nio.ByteBuffer.wrap(pong).apply {
+            position(1 + 8 + 8 + RAKNET_MAGIC_SIZE)
+            putShort(name.size.toShort())
+            put(name)
+        }
+        socket.send(DatagramPacket(pong, pong.size, target))
+    }
 
     /** IP-Adresse des aktiven WLAN-Netzes (über ConnectivityManager, ohne Sonderrechte). */
     private fun wifiAddressFromConnectivity(context: Context): String? = runCatching {
@@ -93,34 +184,29 @@ object LanBridge {
         return localAddress(context) != null
     }
 
-    /**
-     * Schritte für die Einrichtung – bewusst als Klartext, weil sie auf einem
-     * zweiten Gerät (PC oder Hilfs-App) ausgeführt werden müssen.
-     */
+    /** Kurze Einrichtungsschritte für die lokale Bedrock-LAN-Brücke. */
     fun steps(localIp: String?): List<LanStep> {
         val address = localIp ?: "IP dieses Geräts"
         return listOf(
             LanStep(
                 title = "Gerät im selben WLAN",
-                detail = "Handy, PC oder Tablet, das weiterleitet, muss im selben WLAN wie " +
+                detail = "Das Handy muss im selben WLAN wie " +
                     "die Konsole sein. Mobilfunk funktioniert nicht.",
             ),
             LanStep(
-                title = "UDP-Weiterleitung einrichten",
-                detail = "Auf dem Gerät Port $PORT/UDP an $HOST:$PORT weiterleiten " +
-                    "– mit einer Port-Weiterleitungs-App aus dem Store oder einem " +
-                    "kleinen Skript auf dem PC.",
+                title = "LAN-Welt starten",
+                detail = "In der App auf „LAN-Welt starten“ drücken. Die App öffnet " +
+                    "Port $PORT im lokalen WLAN und leitet Bedrock-Pakete automatisch an $HOST:$PORT weiter.",
             ),
             LanStep(
                 title = "LAN-Ankündigung senden",
-                detail = "Die Konsole findet Welten nur über eine Ankündigung im Netz. " +
-                    "Eine LAN-Proxy-App übernimmt Weiterleitung und Ankündigung zusammen " +
-                    "– dort als Ziel $HOST:$PORT eintragen.",
+                detail = "Die App sendet eine Bedrock-LAN-Ankündigung. Die Konsole muss im " +
+                    "gleichen WLAN sein; Mobilfunk und Gast-WLAN mit Client-Isolation funktionieren nicht.",
             ),
             LanStep(
                 title = "In der Konsole suchen",
                 detail = "Im Spiel unter „Freunde“ bzw. „LAN-Welten“ nach Welten suchen. " +
-                    "Die Welt erscheint als LAN-Welt; als Adresse meldet sich $address.",
+                    "Die Welt erscheint als LAN-Welt und verbindet sich über $address:$PORT.",
             ),
         )
     }
