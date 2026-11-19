@@ -143,9 +143,7 @@ dependencies {
     // Tooling for Compose previews in the IDE.
     debugImplementation("androidx.compose.ui:ui-tooling")
 
-    // NOTE: Test dependencies (junit, espresso, kotlinx-coroutines-test) are
-    // intentionally omitted: the project currently has no unit or
-    // instrumentation tests. Lint resolves the test compile classpaths and
-    // failed on the CI runner when these unused artifacts were declared.
-    // Re-add them together with real test sources.
+    // Unit-Tests (app/src/test): StringsTest prüft die Übersetzungstabelle.
+    // kotlin-test reicht dafür; kein JUnit-Runner und keine Instrumentation-Tests.
+    testImplementation(kotlin("test"))
 }

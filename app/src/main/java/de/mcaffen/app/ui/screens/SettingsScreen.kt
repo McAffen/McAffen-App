@@ -260,9 +260,9 @@ internal fun SettingsScreen(
                     SettingsSwitchRow(
                         title = strings["settings.haptics"],
                         subtitle = strings["settings.haptics.hint"],
-                        icon = Icons.Default.Vibration,
                         checked = hapticsEnabled,
                         onCheckedChange = onHapticsChange,
+                        icon = Icons.Default.Vibration,
                     )
                     SettingsSwitchRow(
                         title = strings["settings.compact"],
