@@ -448,6 +448,7 @@ private fun MyProfileCard(
                 }
             }
             if (myStat != null) {
+                val strings = LocalStrings.current
                 GradientProgressBar(
                     fraction = progress,
                     color = MaterialTheme.colorScheme.primary,
@@ -455,7 +456,6 @@ private fun MyProfileCard(
                     animate = true,
                 )
                 Text(
-                    val strings = LocalStrings.current
                     when {
                         rank == 1 -> strings["leaderboard.youLead"]
                         leaderScore > myStat.score ->

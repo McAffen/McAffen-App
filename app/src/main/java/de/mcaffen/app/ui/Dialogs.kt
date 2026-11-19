@@ -88,12 +88,12 @@ internal fun UpdateDialog(
     val hasApk = !release.assetUrl.isNullOrBlank()
     // Kritische Updates (Marker in den Release-Notes) dürfen nicht weggeklickt werden.
     val dismissible = !release.critical && !downloading
+    val strings = LocalStrings.current
     AlertDialog(
         onDismissRequest = { if (dismissible) onDismiss() },
         shape = RoundedCornerShape(28.dp),
         title = {
             Text(
-                val strings = LocalStrings.current
                 when {
                     release.critical -> strings["update.required"]
                     blocked != null -> strings["update.blocked"]
@@ -227,7 +227,6 @@ internal fun UpdateDialog(
                         color = MaterialTheme.colorScheme.error,
                     )
                     is DownloadState.Blocked -> Text(
-                        val strings = LocalStrings.current
                         when (state.verification) {
                             ApkVerification.Corrupt -> strings["update.corrupt"]
                             ApkVerification.Incompatible -> strings["update.incompatible"]
@@ -250,7 +249,6 @@ internal fun UpdateDialog(
         confirmButton = {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 when {
-                    val strings = LocalStrings.current
                     downloading -> TextButton(onClick = {}, enabled = false) { Text(strings["update.loading"]) }
                     failed != null || blocked?.verification == ApkVerification.Corrupt ->
                         Button(onClick = onRetry) { Text(strings["update.retry"]) }
@@ -340,7 +338,6 @@ internal fun AboutDialog(
                     ) { Text("github.com/McAffen/McAffen-App") }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val strings = LocalStrings.current
                     TextButton(onClick = { onOpenLegal("impressum") }) { Text(strings["settings.legal.imprint"]) }
                     TextButton(onClick = { onOpenLegal("datenschutz") }) { Text(strings["settings.legal.privacy"]) }
                     TextButton(onClick = { onOpenLegal("agb") }) { Text(strings["settings.legal.terms"]) }
