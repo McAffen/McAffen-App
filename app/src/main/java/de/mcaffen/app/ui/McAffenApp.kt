@@ -690,16 +690,16 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
                         val subtitle = when (selectedTab) {
                             Tab.LEADERBOARD ->
                                 if (players.isEmpty()) strings["subtitle.loading"]
-                                else formatString(strings, "subtitle.players", players.size)
+                                else strings.format("subtitle.players", players.size)
                             Tab.NEWS ->
                                 if (news.isEmpty()) strings["subtitle.postsLoading"]
-                                else formatString(strings, "subtitle.posts", news.size)
+                                else strings.format("subtitle.posts", news.size)
                             Tab.VOTES ->
                                 if (voteSites.isEmpty()) strings["subtitle.sitesLoading"]
-                                else formatString(strings, "subtitle.sites", voteSites.size)
-                            Tab.STATUS -> status?.let { formatString(strings, "subtitle.online", it.onlinePlayers) }
+                                else strings.format("subtitle.sites", voteSites.size)
+                            Tab.STATUS -> status?.let { strings.format("subtitle.online", it.onlinePlayers) }
                                 ?: strings["subtitle.live"]
-                            Tab.SETTINGS -> formatString(strings, "subtitle.version", BuildConfig.VERSION_NAME)
+                            Tab.SETTINGS -> strings.format("subtitle.version", BuildConfig.VERSION_NAME)
                         }
                         AnimatedContent(
                             targetState = subtitle,

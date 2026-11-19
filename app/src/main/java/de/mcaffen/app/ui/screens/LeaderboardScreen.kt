@@ -150,20 +150,20 @@ internal fun LeaderboardScreen(
                     ) {
                         EmptyState(
                             emoji = "🏆",
-                            title = strings["leaderboard.empty.title"],
-                            text = boardStatus?.error?.let { formatString(strings, "common.error", it) }
-                                ?: boardStatus?.let { formatString(strings, "leaderboard.empty.answered", it.entries) }
-                                ?: strings["leaderboard.empty.notAsked"],
+                            title = strings()["leaderboard.empty.title"],
+                            text = boardStatus?.error?.let { strings().format("common.error", it) }
+                                ?: boardStatus?.let { strings().format("leaderboard.empty.answered", it.entries) }
+                                ?: strings()["leaderboard.empty.notAsked"],
                         )
                         Button(
                             onClick = onTestLeaderboard,
                             shape = RoundedCornerShape(14.dp),
                         ) {
-                            Text(strings["leaderboard.test"])
+                            Text(strings()["leaderboard.test"])
                         }
                         boardStatus?.let { status ->
                             Text(
-                                formatString(strings, "leaderboard.lastCheck", lastCheckText(status.at, strings)),
+                                strings().format("leaderboard.lastCheck", lastCheckText(status.at, strings())),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -224,9 +224,9 @@ internal fun LeaderboardScreen(
                                 Reveal(visible = animationsEnabled) { Podium(players.take(PODIUM_SIZE)) }
                             }
                             item("listHeader") {
-                                SectionTitle(strings["leaderboard.placements"]) {
+                                SectionTitle(strings()["leaderboard.placements"]) {
                                     PillChip(
-                                        text = formatString(strings, "subtitle.players", players.size),
+                                        text = strings().format("subtitle.players", players.size),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         containerAlpha = 0.10f,
                                     )
@@ -237,8 +237,8 @@ internal fun LeaderboardScreen(
                             item("empty") {
                                 EmptyState(
                                     emoji = "🔍",
-                                    title = strings["leaderboard.notFound"],
-                                    text = formatString(strings, "leaderboard.notFound.text", query),
+                                    title = strings()["leaderboard.notFound"],
+                                    text = strings().format("leaderboard.notFound.text", query),
                                     modifier = Modifier.padding(top = 24.dp),
                                 )
                             }
@@ -349,7 +349,7 @@ private fun LeaderboardHero(
                         formatScore(animatedCount, LocalStrings.current.language),
                     )
                 } else {
-                    strings["leaderboard.noPlacements"]
+                    LocalStrings.current["leaderboard.noPlacements"]
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.85f),
@@ -459,7 +459,7 @@ private fun MyProfileCard(
                     when {
                         rank == 1 -> strings["leaderboard.youLead"]
                         leaderScore > myStat.score ->
-                            formatString(strings, "leaderboard.pointsToFirst", formatScore(leaderScore - myStat.score))
+                            strings.format("leaderboard.pointsToFirst", formatScore(leaderScore - myStat.score))
                         else -> strings["leaderboard.tied"]
                     },
                     style = MaterialTheme.typography.labelSmall,

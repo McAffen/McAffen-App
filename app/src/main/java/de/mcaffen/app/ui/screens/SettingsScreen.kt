@@ -302,7 +302,7 @@ internal fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            formatString(strings, "settings.updates.lastCheck", lastCheckText(lastUpdateCheck, strings)),
+                            strings.format("settings.updates.lastCheck", lastCheckText(lastUpdateCheck, strings)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
@@ -440,7 +440,7 @@ internal fun SettingsScreen(
                         strings["settings.legal.hint"] +
                             if (legalCached) {
                                 val formatter = SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale.getDefault())
-                                formatString(strings, "settings.legal.lastSync", formatter.format(Date(legalLastSync)))
+                                strings.format("settings.legal.lastSync", formatter.format(Date(legalLastSync)))
                             } else {
                                 strings["settings.legal.offline"]
                             },
