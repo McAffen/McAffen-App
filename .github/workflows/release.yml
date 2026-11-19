@@ -56,11 +56,16 @@ jobs:
             -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO \
             build
+      - name: Simulator-App als ZIP packen
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            ios/build/Build/Products/Debug-iphonesimulator/McAffen.app \
+            ios/build/McAffen-iOS-Simulator.app.zip
       - name: Simulator-App hochladen
         uses: actions/upload-artifact@v4
         with:
-          name: McAffen-iOS-Simulator.app
-          path: ios/build/Build/Products/Debug-iphonesimulator/McAffen.app
+          name: McAffen-iOS-Simulator.app.zip
+          path: ios/build/McAffen-iOS-Simulator.app.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -72,6 +77,11 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+      - name: iOS-Simulator-App herunterladen
+        uses: actions/download-artifact@v4
+        with:
+          name: McAffen-iOS-Simulator.app.zip
+          path: dist
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -217,8 +227,10 @@ jobs:
             ---
             **Installation:** Die App lädt das Update selbst herunter und installiert es über die bestehende Version – deine Daten bleiben erhalten.
             **Prüfsumme:** `${{ steps.checksum.outputs.checksum }}` (auch als `McAffen-release.apk.sha256` dabei)
+            **Apple:** `McAffen-iOS-Simulator.app.zip` ist ein Build für den iOS-Simulator. Für ein echtes iPhone ist zusätzlich Apple-Signing/TestFlight erforderlich.
           generate_release_notes: false
           target_commitish: ${{ github.sha }}
           files: |
             dist/McAffen-release.apk
             dist/McAffen-release.apk.sha256
+            dist/McAffen-iOS-Simulator.app.zip
