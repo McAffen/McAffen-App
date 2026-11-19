@@ -1,0 +1,27 @@
+name: McAffen
+options:
+  bundleIdPrefix: de.mcaffen
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ""
+targets:
+  McAffen:
+    type: application
+    platform: iOS
+    sources:
+      - path: McAffen
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.mcaffen.app
+        INFOPLIST_KEY_CFBundleDisplayName: McAffen
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: false
+    info:
+      path: McAffen/Info.plist
+      properties:
+        UILaunchScreen: {}
+    scheme:
+      gatherCoverageData: false
+      testTargets: []

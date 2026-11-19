@@ -9,10 +9,8 @@ name: iOS Build (shared)
 #  - :shared:assembleSharedXCFramework – echtes iOS-Framework (arm64 + Simulator)
 #    als Artefakt "Shared.xcframework", herunterladbar im Actions-Lauf
 #
-# Was hier (noch) NICHT gebaut wird: die iOS-App selbst. Es gibt keinen Ordner
-# ios/ mit einem Xcode-Projekt. Sobald der existiert, kommen hier
-# "xcodebuild build" für den Simulator, Simulator-Screenshots und der
-# TestFlight-Upload dazu (siehe docs/issues/001-ios-ohne-eigenes-geraet.md).
+# Zusätzlich wird die native SwiftUI-App für den iOS-Simulator gebaut. Sie
+# benötigt keinen Apple-Account und kein eigenes iPhone.
 #
 # Schnell:
 #  - Gradle-Cache aus dem vorherigen Lauf (setup-gradle)
@@ -91,6 +89,29 @@ jobs:
         with:
           name: Shared.xcframework
           path: shared/build/XCFrameworks/**/Shared.xcframework
+          if-no-files-found: error
+          retention-days: 14
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+      - name: Xcode-Projekt erzeugen
+        working-directory: ios
+        run: xcodegen generate
+      - name: iOS-App für Simulator bauen
+        run: |
+          xcodebuild \
+            -project ios/McAffen.xcodeproj \
+            -scheme McAffen \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Simulator-App hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: McAffen-iOS-Simulator.app
+          path: ios/build/Build/Products/Debug-iphonesimulator/McAffen.app
           if-no-files-found: error
           retention-days: 14
       - name: Testbericht hochladen
