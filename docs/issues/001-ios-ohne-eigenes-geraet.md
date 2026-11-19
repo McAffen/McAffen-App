@@ -6,7 +6,7 @@
 
 - Der gemeinsame Kern (`shared/`) hat seit #17 die Targets `iosArm64` und `iosSimulatorArm64`,
   baut ein `Shared.xcframework` und läuft im iOS-Simulator auf einem GitHub-macOS-Runner
-  (`.github/workflows/ios.yml`). Ohne eigenen Mac und ohne iPhone.
+  (`.github/workflows/release.yml`). Ohne eigenen Mac und ohne iPhone.
 - Die iOS-Oberfläche fehlt: Es gibt keinen Ordner `ios/`. `docs/ios-release.md` beschreibt
   sie als Ziel, nicht als Bestand.
 - Der Maintainer besitzt weder ein iPhone noch einen Mac.
@@ -29,7 +29,7 @@ Alles läuft über GitHub Actions (macOS-Runner), Simulator und TestFlight-Teste
   Umbau der Android-Architektur auskommt. Screenshots aus dem Simulator (Schritt 3)
   ersetzen den Blick aufs echte Gerät.
 
-### 2. CI: `ios.yml` ist vorhanden, wird ausgebaut
+### 2. CI: Der Main-Release-Workflow baut alles nacheinander
 
 - [x] Runner `macos-15` (die in der Doku genannte `macos-13` ist veraltet)
 - [x] `iosSimulatorArm64Test` und `assembleSharedXCFramework`
@@ -64,8 +64,8 @@ Alles läuft über GitHub Actions (macOS-Runner), Simulator und TestFlight-Teste
 ## Akzeptanzkriterien
 
 - [x] `shared` baut für `iosArm64` und `iosSimulatorArm64` in CI
-- [x] `ios.yml` lädt das XCFramework als Artefakt hoch
-- [ ] `ios/` existiert, `ios.yml` baut die App für den Simulator und lädt Screenshots hoch
+- [x] `release.yml` lädt das XCFramework als Artefakt hoch
+- [x] `release.yml` baut die App für den Simulator und lädt sie als Artefakt hoch
 - [ ] Rangliste, Voten und Status funktionieren im Simulator
 - [ ] Signierter Build landet per Workflow in TestFlight
 - [ ] README und `docs/ios-release.md` entsprechen dem tatsächlichen Stand
