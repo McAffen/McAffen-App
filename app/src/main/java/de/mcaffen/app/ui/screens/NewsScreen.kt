@@ -1,5 +1,6 @@
 package de.mcaffen.app.ui.screens
 
+import de.mcaffen.app.ui.LocalStrings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,12 +56,12 @@ internal fun NewsScreen(
             ) {
                 Text("📰", style = MaterialTheme.typography.headlineLarge)
                 Text(
-                    error ?: "Noch keine Beiträge.",
+                    error ?: LocalStrings.current["news.empty"],
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    "Antippen zum Neu laden",
+                    LocalStrings.current["news.reload"],
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onReload() },

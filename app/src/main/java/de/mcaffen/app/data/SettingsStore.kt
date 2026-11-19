@@ -19,6 +19,12 @@ class SettingsStore(context: Context) {
     val hapticsEnabled = MutableStateFlow(prefs.getBoolean(KEY_HAPTICS, true))
     val compactMode = MutableStateFlow(prefs.getBoolean(KEY_COMPACT, false))
 
+    /**
+     * Sprache der Oberfläche: "SYSTEM" (folgt dem Gerät), "de" oder "en".
+     * Aufgelöst wird sie in [de.mcaffen.app.ui.AppLanguage].
+     */
+    val language = MutableStateFlow(prefs.getString(KEY_LANGUAGE, null) ?: "SYSTEM")
+
     /** Update-Version, die der Nutzer mit "Später" verworfen hat (wird nicht neu gefragt). */
     val skippedUpdate = MutableStateFlow(prefs.getString(KEY_SKIPPED_UPDATE, null))
 
@@ -95,6 +101,12 @@ class SettingsStore(context: Context) {
         compactMode.value = value
     }
 
+    /** Sprache setzen ("SYSTEM", "de", "en"). */
+    fun setLanguage(value: String) {
+        prefs.edit().putString(KEY_LANGUAGE, value).apply()
+        language.value = value
+    }
+
     fun skipUpdate(tag: String) {
         prefs.edit().putString(KEY_SKIPPED_UPDATE, tag).apply()
         skippedUpdate.value = tag
@@ -155,6 +167,7 @@ class SettingsStore(context: Context) {
         const val KEY_ANIMATIONS = "animations_enabled"
         const val KEY_HAPTICS = "haptics_enabled"
         const val KEY_COMPACT = "compact_mode"
+        const val KEY_LANGUAGE = "language"
         const val KEY_SKIPPED_UPDATE = "update_skipped"
         const val KEY_UPDATE_CHECKS = "update_checks_enabled"
         const val KEY_LAST_UPDATE_CHECK = "update_last_check"

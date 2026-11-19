@@ -1,0 +1,35 @@
+name: Lokale Prüfung (Kompilierbarkeit)
+
+# Einmaliger Prüf-Workflow: kompiliert die App und die Unit-Tests auf einem
+# GitHub-Linux-Runner, damit Fehler auch ohne eigene Android-SDK-Installation
+# auffallen. Kann jederzeit gelöscht werden.
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  compile:
+    name: App und Tests kompilieren
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit-Tests
+        run: ./gradlew test --build-cache
+      - name: Testbericht im Lauf anzeigen
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Unit-Tests
+          path: '**/build/test-results/test*/**/*.xml'
+          reporter: java-junit
+          fail-on-error: false

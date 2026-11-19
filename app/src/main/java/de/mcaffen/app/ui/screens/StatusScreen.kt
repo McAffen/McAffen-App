@@ -4,6 +4,7 @@ package de.mcaffen.app.ui
 
 import android.content.Intent
 import android.net.Uri
+import de.mcaffen.app.ui.LocalStrings
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedVisibility
@@ -127,8 +128,8 @@ internal fun StatusScreen(
                     item("empty") {
                         EmptyState(
                             emoji = "📡",
-                            title = "Noch keine Statusdaten",
-                            text = "Ziehe nach unten, um den Live-Status von mcaffen.de zu laden.",
+                            title = LocalStrings.current["status.empty.title"],
+                            text = LocalStrings.current["status.empty.text"],
                         )
                     }
                 } else {
@@ -152,7 +153,7 @@ internal fun StatusScreen(
                                     contentPadding = 16.dp,
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    SectionTitle("Server im Netzwerk") {
+                                    SectionTitle(LocalStrings.current["status.servers"]) {
                                         PillChip(
                                             text = "$onlineServers online",
                                             color = McAffenBrand.colors.positive,
@@ -179,7 +180,7 @@ internal fun StatusScreen(
                     // Spielmodi gehören hierhin: sie zeigen, wo man startet.
                     if (modes.isNotEmpty() || modesLoading) {
                         item("modesHeader") {
-                            SectionTitle("Spielmodi") {
+                            SectionTitle(LocalStrings.current["status.modes"]) {
                                 PillChip(
                                     text = if (modesLoading) "…" else "${modes.size}",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -216,17 +217,19 @@ internal fun StatusScreen(
                                         type = "text/plain"
                                         putExtra(
                                             Intent.EXTRA_TEXT,
-                                            "Schau auf dem McAffen-Netzwerk vorbei! 🐵\nServer-IP: mcaffen.de",
+                                            LocalStrings.current["status.shareText"],
                                         )
                                     }
-                                    context.startActivity(Intent.createChooser(share, "Server teilen"))
+                                    context.startActivity(
+                                        Intent.createChooser(share, LocalStrings.current["status.shareChooser"]),
+                                    )
                                 },
                             )
                         }
                     }
                     val messages = status.messages.filter(String::isNotBlank)
                     item("newsHeader") {
-                        SectionTitle("Meldungen") {
+                        SectionTitle(LocalStrings.current["status.messages"]) {
                             PillChip(
                                 text = "${messages.size}",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -238,8 +241,8 @@ internal fun StatusScreen(
                         item("newsEmpty") {
                             EmptyState(
                                 emoji = "📣",
-                                title = "Alles ruhig",
-                                text = "Aktuell gibt es keine Meldungen vom Netzwerk.",
+                                title = LocalStrings.current["status.messages.empty.title"],
+                                text = LocalStrings.current["status.messages.empty.text"],
                             )
                         }
                     } else {
@@ -280,7 +283,7 @@ private fun StatusHero(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "Netzwerk-Status",
+                    LocalStrings.current["status.network"],
                     style = MaterialTheme.typography.labelLarge,
                     color = Color.White.copy(alpha = 0.9f),
                 )
@@ -293,14 +296,19 @@ private fun StatusHero(
                     color = Color.White,
                 )
                 Text(
-                    "  Spieler online",
+                    LocalStrings.current["status.playersOnline"],
                     style = MaterialTheme.typography.titleSmall,
                     color = Color.White.copy(alpha = 0.9f),
                     modifier = Modifier.padding(bottom = 10.dp),
                 )
             }
             Text(
-                "$onlineServers von $servers Servern erreichbar · Rekord heute: ${formatScore(peak)}",
+                formatString(
+                    "status.reachable",
+                    onlineServers,
+                    servers,
+                    formatScore(peak),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.85f),
             )
@@ -354,7 +362,7 @@ private fun ServerRow(server: ServerInfo) {
                 fontWeight = FontWeight.Black,
             )
             Text(
-                "Spieler",
+                LocalStrings.current["common.player"],
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -397,7 +405,7 @@ private fun ServerAddressCard() {
                 }
                 Column {
                     Text(
-                        "Java-Edition · Server-IP",
+                        LocalStrings.current["status.javaIp"],
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -420,7 +428,10 @@ private fun ServerAddressCard() {
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                 )
-                Text(if (copied) " Kopiert" else " Kopieren", fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (copied) LocalStrings.current["common.copied"] else LocalStrings.current["common.copy"],
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
         SoftDivider()
@@ -432,7 +443,7 @@ private fun ServerAddressCard() {
         ) {
             Column {
                 Text(
-                    "Bedrock-Edition · Handy, PC, Konsole",
+                    LocalStrings.current["status.bedrockIp"],
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -454,7 +465,10 @@ private fun ServerAddressCard() {
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                 )
-                Text(if (copied) " Kopiert" else " Kopieren", fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (copied) LocalStrings.current["common.copied"] else LocalStrings.current["common.copy"],
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
@@ -468,7 +482,7 @@ private fun CommunityLinksCard(onOpen: (String) -> Unit, onShare: () -> Unit) {
         contentPadding = 16.dp,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        SectionTitle("Community")
+        SectionTitle(LocalStrings.current["status.community"])
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilledTonalButton(
                 onClick = { onOpen("https://mcaffen.de") },
@@ -494,7 +508,7 @@ private fun CommunityLinksCard(onOpen: (String) -> Unit, onShare: () -> Unit) {
             shape = RoundedCornerShape(14.dp),
         ) {
             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(17.dp))
-            Text("  Server teilen", fontWeight = FontWeight.Bold)
+            Text(LocalStrings.current["status.share"], fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -561,15 +575,14 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
         contentPadding = 16.dp,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SectionTitle("LAN-Welt für Konsolen") {
+        SectionTitle(LocalStrings.current["status.lan.title"]) {
             PillChip(
-                text = if (onWifi) "Im WLAN" else "Kein WLAN",
+                text = if (onWifi) LocalStrings.current["status.lan.onWifi"] else LocalStrings.current["status.lan.noWifi"],
                 color = if (onWifi) McAffenBrand.colors.positive else McAffenBrand.colors.negative,
             )
         }
         Text(
-            "PS5, Switch und Xbox finden Welten nur im eigenen Netz. Mit einer " +
-                "Weiterleitung im WLAN erscheint bedrock.mcaffen.de dort als LAN-Welt.",
+            LocalStrings.current["status.lan.intro"],
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -578,13 +591,13 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             AddressPill(
-                label = "Ziel",
+                label = LocalStrings.current["status.lan.target"],
                 value = "${LanBridge.HOST}:${LanBridge.PORT}",
                 modifier = Modifier.weight(1f),
             )
             AddressPill(
-                label = "Dieses Gerät",
-                value = localIp ?: "nicht im WLAN",
+                label = LocalStrings.current["status.lan.thisDevice"],
+                value = localIp ?: LocalStrings.current["status.lan.notInWifi"],
                 modifier = Modifier.weight(1f),
             )
         }
@@ -595,7 +608,7 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                     LanBridge.stop()
                     running = false
                 } else if (!onWifi) {
-                    error = "LAN-Welt starten funktioniert nur mit einer aktiven WLAN-Verbindung."
+                    error = LocalStrings.current["status.lan.errorWifi"]
                 } else {
                     LanBridge.start(context).onSuccess {
                         running = true
@@ -604,7 +617,10 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                         onStarted()
                     }.onFailure {
                         running = false
-                        error = "LAN-Welt konnte nicht gestartet werden: ${it.message ?: "Port $LanBridge.PORT ist belegt."}"
+                        error = formatString(
+                            "status.lan.errorStart",
+                            it.message ?: formatString("status.lan.portBusy", LanBridge.PORT),
+                        )
                     }
                 }
             },
@@ -619,7 +635,7 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                 modifier = Modifier.size(18.dp),
             )
             Text(
-                if (running) "  LAN-Welt stoppen" else "  LAN-Welt starten",
+                if (running) LocalStrings.current["status.lan.stop"] else LocalStrings.current["status.lan.start"],
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -632,7 +648,7 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
         }
         AnimatedVisibility(visible = expanded) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LanBridge.steps(localIp).forEachIndexed { index, step ->
+                LanBridge.steps(localIp, LocalStrings.current.language).forEachIndexed { index, step ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             "${index + 1}.",
@@ -655,8 +671,7 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                     }
                 }
                 Text(
-                    "Die App bleibt geöffnet, solange die LAN-Welt aktiv ist. " +
-                        "Handy und Konsole müssen im selben WLAN sein.",
+                    LocalStrings.current["status.lan.footnote"],
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

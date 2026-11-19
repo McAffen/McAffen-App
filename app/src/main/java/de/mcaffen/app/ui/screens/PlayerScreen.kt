@@ -1,5 +1,6 @@
 package de.mcaffen.app.ui.screens
 
+import de.mcaffen.app.ui.LocalStrings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,7 +61,7 @@ internal fun PlayerScreen(
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            label = { Text("Spielername") },
+            label = { Text(LocalStrings.current["vote.name"]) },
             singleLine = true,
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -83,7 +84,7 @@ internal fun PlayerScreen(
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
             } else {
-                Text("Profil laden", fontWeight = FontWeight.Bold)
+                Text(LocalStrings.current["player.load"], fontWeight = FontWeight.Bold)
             }
         }
 
@@ -94,8 +95,7 @@ internal fun PlayerScreen(
                 color = MaterialTheme.colorScheme.error,
             )
             profile == null -> Text(
-                "Gib einen Namen ein – du bekommst Wellen, Kills, Ränge und Votes aus " +
-                    "„Nacht der Untoten“.",
+                LocalStrings.current["player.hint"],
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -135,7 +135,7 @@ private fun ProfileCard(profile: PlayerProfile) {
                 )
                 profile.votes?.let { votes ->
                     Text(
-                        "${votes.total} Votes · ${votes.month} diesen Monat · Serie ${votes.streak}",
+                        formatString("player.votes", votes.total, votes.month, votes.streak),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -145,16 +145,16 @@ private fun ProfileCard(profile: PlayerProfile) {
 
         profile.nachtDerUntoten?.let { ndu ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                StatBox("Wellen", "${ndu.bestWave}", "Rang #${ndu.rankWaves}", Modifier.weight(1f))
-                StatBox("Kills", "${ndu.kills}", "Rang #${ndu.rankKills}", Modifier.weight(1f))
+                StatBox(LocalStrings.current["player.stat.waves"], "${ndu.bestWave}", "Rang #${ndu.rankWaves}", Modifier.weight(1f))
+                StatBox(LocalStrings.current["player.stat.kills"], "${ndu.kills}", "Rang #${ndu.rankKills}", Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                StatBox("Spiele", "${ndu.games}", null, Modifier.weight(1f))
-                StatBox("Coins", "${ndu.coins}", null, Modifier.weight(1f))
+                StatBox(LocalStrings.current["player.stat.games"], "${ndu.games}", null, Modifier.weight(1f))
+                StatBox(LocalStrings.current["player.stat.coins"], "${ndu.coins}", null, Modifier.weight(1f))
             }
             ndu.lastPlayed?.let {
                 Text(
-                    "Zuletzt gespielt: ${formatNewsDate(it)}",
+                    formatString("player.lastPlayed", formatNewsDate(it)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -196,6 +196,6 @@ private fun StatBox(label: String, value: String, sub: String?, modifier: Modifi
 @Composable
 internal fun PlayerEmpty(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Kein Profil", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(LocalStrings.current["player.none"], color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

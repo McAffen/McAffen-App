@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import de.mcaffen.app.model.PlayerStat
 import de.mcaffen.app.data.VoteBrowser
 import de.mcaffen.app.model.VoteSite
+import de.mcaffen.app.ui.LocalStrings
 import de.mcaffen.app.ui.McAffenBrand
 import de.mcaffen.app.ui.VOTE_COOLDOWN_MS
 import de.mcaffen.app.ui.components.AnimatedBackdrop
@@ -152,7 +153,7 @@ internal fun VoteScreen(
                         contentPadding = 16.dp,
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        SectionTitle("Dein Minecraft-Name")
+                        SectionTitle(LocalStrings.current["vote.title"])
                         OutlinedTextField(
                             value = name,
                             onValueChange = {
@@ -162,7 +163,7 @@ internal fun VoteScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            placeholder = { Text("Spielername") },
+                            placeholder = { Text(LocalStrings.current["vote.name"]) },
                             shape = RoundedCornerShape(16.dp),
                             leadingIcon = {
                                 Icon(
@@ -184,7 +185,7 @@ internal fun VoteScreen(
                             enabled = canSearch,
                             shape = RoundedCornerShape(14.dp),
                         ) {
-                            Text("Prüfen & freischalten", fontWeight = FontWeight.Bold)
+                            Text(LocalStrings.current["vote.check"], fontWeight = FontWeight.Bold)
                         }
                         AnimatedContent(
                             targetState = when {
@@ -206,7 +207,7 @@ internal fun VoteScreen(
                                     PlayerAvatar(player?.name.orEmpty(), 40.dp, ringColor = McAffenBrand.colors.positive)
                                     Column {
                                         Text(
-                                            "Spieler gefunden",
+                                            LocalStrings.current["vote.found"],
                                             style = MaterialTheme.typography.labelLarge,
                                             color = McAffenBrand.colors.positive,
                                         )
@@ -217,12 +218,12 @@ internal fun VoteScreen(
                                     }
                                 }
                                 "missing" -> Text(
-                                    "Spieler nicht gefunden – prüfe die Schreibweise.",
+                                    LocalStrings.current["vote.notFound"],
                                     style = MaterialTheme.typography.bodySmall,
                                     color = McAffenBrand.colors.negative,
                                 )
                                 else -> Text(
-                                    "Gib deinen Namen ein, um voten zu können. Er wird gespeichert.",
+                                    LocalStrings.current["vote.enterName"],
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -231,9 +232,9 @@ internal fun VoteScreen(
                     }
                 }
                 item("header") {
-                    SectionTitle("Vote-Seiten") {
+                    SectionTitle(LocalStrings.current["vote.sites"]) {
                         PillChip(
-                            text = "$readyCount / ${voteSites.size} bereit",
+                            text = formatString("vote.ready", readyCount, voteSites.size),
                             color = if (readyCount > 0) McAffenBrand.colors.positive else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -242,8 +243,8 @@ internal fun VoteScreen(
                     item("empty") {
                         EmptyState(
                             emoji = "🗳️",
-                            title = "Keine Vote-Seiten",
-                            text = "Ziehe zum Aktualisieren nach unten – die Seiten werden beim ersten Start geladen.",
+                            title = LocalStrings.current["vote.empty.title"],
+                            text = LocalStrings.current["vote.empty.text"],
                         )
                     }
                 }
@@ -271,13 +272,13 @@ internal fun VoteScreen(
                     }
                 }
                 item("footer") {
+                    val strings = LocalStrings.current
                     Text(
-                        "Für jede Abstimmung erhältst du Belohnungen wie Vote-Schlüssel und Coins. " +
+                        strings["vote.footer.rewards"] +
                             if (browserMode == de.mcaffen.app.data.VoteBrowser.EXTERNAL)
-                            "Vote-Links öffnen sich im Browser. Umstellen unter Einstellungen → Vote-Links."
-                        else
-                            "Vote-Links öffnen sich im eingebauten Browser – mit „Zurück“ bist du wieder hier. " +
-                                "Umstellen unter Einstellungen → Vote-Links.",
+                                strings["vote.footer.browser"]
+                            else
+                                strings["vote.footer.inApp"],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -316,12 +317,12 @@ private fun VoteProgressCard(
         ) {
             Column {
                 Text(
-                    "Vote-Fortschritt",
+                    LocalStrings.current["vote.progress"],
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White.copy(alpha = 0.85f),
                 )
                 Text(
-                    "$readyCount von $total bereit",
+                    formatString("vote.progressCount", readyCount, total),
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                 )
@@ -336,9 +337,9 @@ private fun VoteProgressCard(
         )
         Text(
             if (playerName != null) {
-                "Voten für $playerName – jede Seite bringt Punkte."
+                formatString("vote.forPlayer", playerName)
             } else {
-                "Spieler prüfen, um alle Seiten freizuschalten."
+                LocalStrings.current["vote.unlock"]
             },
             style = MaterialTheme.typography.bodySmall,
             color = Color.White.copy(alpha = 0.85f),
@@ -386,9 +387,12 @@ private fun VoteSiteCard(
                 Text(site.site, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                 Text(
                     when {
-                        lastVoted <= 0L -> site.reward ?: "Vote-Schlüssel & Coins"
-                        readyAgain -> "Bereit – du kannst wieder voten"
-                        else -> "Wieder möglich in ${formatRemainingShort(remaining)}"
+                        lastVoted <= 0L -> site.reward ?: LocalStrings.current["vote.reward.default"]
+                        readyAgain -> LocalStrings.current["vote.readyAgain"]
+                        else -> formatString(
+                            "vote.againIn",
+                            formatRemainingShort(remaining, LocalStrings.current.language),
+                        )
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = accent,
@@ -404,7 +408,10 @@ private fun VoteSiteCard(
                     contentColor = if (readyAgain) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer,
                 ),
             ) {
-                Text(if (readyAgain) "Voten" else "Nochmal", fontWeight = FontWeight.Bold)
+                Text(
+                    if (readyAgain) LocalStrings.current["vote.action.vote"] else LocalStrings.current["vote.action.again"],
+                    fontWeight = FontWeight.Bold,
+                )
                 Icon(
                     Icons.AutoMirrored.Filled.OpenInNew,
                     contentDescription = null,
@@ -461,7 +468,7 @@ private fun VoteSiteCard(
                     modifier = Modifier.size(15.dp),
                 )
                 Text(
-                    "Zuletzt gevotet – jetzt wieder möglich",
+                    LocalStrings.current["vote.lastVoted"],
                     style = MaterialTheme.typography.labelSmall,
                     color = McAffenBrand.colors.positive,
                 )
@@ -476,7 +483,7 @@ private fun VoteSiteCard(
                     .padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 Text(
-                    "Gib oben deinen Minecraft-Namen ein, dann öffnen sich die Vote-Seiten.",
+                    LocalStrings.current["vote.needName"],
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

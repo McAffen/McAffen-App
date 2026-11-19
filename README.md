@@ -6,6 +6,7 @@ App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
 
 - **Android:** `app/` – Jetpack Compose, Room-Cache, In-App-Update
 - **iOS:** in Arbeit – `shared/` baut bereits für iOS (CI: `.github/workflows/ios.yml`); die iOS-Oberfläche (`ios/`) folgt
+- **Sprachen:** Deutsch und Englisch, umschaltbar unter Einstellungen → Sprache („System“ folgt dem Gerät). Alle Texte liegen in `app/src/main/java/de/mcaffen/app/ui/Strings.kt`
 - **Gemeinsam:** `shared/` – Modelle, API-Zugriff (Ktor), Vote-Seiten, Update-Logik
 - **iOS veröffentlichen:** siehe [docs/ios-release.md](docs/ios-release.md)
 
@@ -17,6 +18,7 @@ App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
 - **Offline-Fallback:** Room speichert den letzten erfolgreichen Abruf
 - **Updates:** Beim Start wird das neueste GitHub-Release geprüft; bei einer höheren Version erscheint ein Dialog mit dem Release-Link
 - **CI/CD:** Pull Requests werden bei jedem Update gebaut und gelintet; Pushes auf `main` starten den Check ebenfalls. Tags wie `v1.0.0` erzeugen ein GitHub Release
+- **Offene Vorhaben:** als Issue-Vorlagen in [`docs/issues/`](docs/issues) – iOS ohne eigenes Gerät und Mehrsprachigkeit
 
 Die API-Endpunkte sind derzeit gemäß der vorgegebenen Annahme modelliert. Falls die Website abweichende JSON-Formate liefert, müssen nur die Modelle bzw. Retrofit-Adapter angepasst werden.
 
