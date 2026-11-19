@@ -11,6 +11,7 @@ import de.mcaffen.app.network.McAffenApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import android.content.Context
@@ -70,15 +71,14 @@ class McAffenRepository(
      * damit die Haupt-Rangliste davon unberührt bleibt.
      */
     suspend fun leaderboard(sort: String): List<PlayerStat> {
-        val response = api.getLeaderboardSorted("/ndu/top&sort=" + sort)
-        return response.list
+        val rows = api.getLeaderboard(sort)
+        return rows
             .filter { it.name.isNotBlank() }
-            .sortedByDescending { it.points }
-            .map { PlayerStat(it.name, it.points.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(), null) }
+            .map { PlayerStat(it.name, it.score) }
     }
 
     /** Ergebnis der letzten Ranglisten-Aktualisierung (für Diagnose in der App). */
-    private val _lastBoardResult = kotlinx.coroutines.flow.MutableStateFlow<BoardResult?>(null)
+    private val _lastBoardResult = MutableStateFlow<BoardResult?>(null)
     val lastBoardResult = _lastBoardResult.asStateFlow()
 
     data class BoardResult(val entries: Int, val error: String?, val at: Long)
@@ -86,21 +86,20 @@ class McAffenRepository(
     suspend fun refresh() = coroutineScope {
         // Rangliste und Status liegen auf demselben Endpunkt; jeder Teil wird
         // einzeln abgesichert, damit ein Fehler den anderen nicht mitreißt.
-        val leaderboard = async { runCatching { api.getLeaderboard() } }
+        val leaderboard = async { runCatching { api.getLeaderboard("waves") } }
         val serverStatus = async { runCatching { api.getServerStatus() } }
 
         leaderboard.await().onFailure { error ->
             // Nicht still verschlucken: der Nutzer soll sehen, warum nichts kommt.
             android.util.Log.w("McAffen", "Rangliste fehlgeschlagen: ${error.javaClass.simpleName}: ${error.message}", error)
         }
-        leaderboard.await().onSuccess { response ->
-            val entries = response.list
+        leaderboard.await().onSuccess { rows ->
+            val entries = rows
                 .filter { it.name.isNotBlank() }
-                .sortedByDescending { it.points }
+                .sortedByDescending { it.score }
             val oldScores = dao.currentPlayers().associate { it.name to it.score }
             val mapped = entries.map { entry ->
-                val score = entry.points.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
-                PlayerEntity(entry.name, score, oldScores[entry.name]?.takeIf { it != score })
+                PlayerEntity(entry.name, entry.score, oldScores[entry.name]?.takeIf { it != entry.score })
             }
             // Eine leere Rangliste (z. B. Server gerade zurückgesetzt) darf den
             // letzten Stand nicht löschen – aber wenn der Server antwortet, wird

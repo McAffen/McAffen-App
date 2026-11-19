@@ -44,23 +44,20 @@ class McAffenClient(engine: HttpClientEngine) {
         return http.get(url).body()
     }
 
-    /** Rangliste für einen Sortierwert (waves, kills, games, coins). */
+    /** Rangliste: `/api/rangliste?sort=waves|kills|games|coins`. */
     suspend fun leaderboard(sort: BoardSort = BoardSort.WAVES): List<PlayerStat> {
-        val response: LeaderboardResponse = getRaw("/ndu/top&sort=${sort.key}")
-        return response.list
+        val url = URLBuilder("$API_BASE/rangliste").apply {
+            parameters.append("sort", sort.key)
+        }.build()
+        val rows: List<RankRow> = http.get(url).body()
+        return rows
             .filter { it.name.isNotBlank() }
-            .sortedByDescending { it.points }
-            .map {
-                PlayerStat(
-                    name = it.name,
-                    score = it.points.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
-                )
-            }
+            .map { PlayerStat(name = it.name, score = it.score) }
     }
 
     /** Netzwerkstatus inklusive Serverliste. */
     suspend fun status(): ServerStatus {
-        val raw: RawStatus = getRaw("/status")
+        val raw: RawStatus = http.get("$API_BASE/status").body()
         val servers = raw.servers.map { server ->
             ServerInfo(
                 name = server.name ?: server.id ?: "Server",
@@ -82,9 +79,54 @@ class McAffenClient(engine: HttpClientEngine) {
     suspend fun playerVotes(name: String): RawPlayerVotes =
         getRaw("/votes/player/${name.trim()}")
 
+
+    /** Über den Server: Adresse, Version, Discord, Socials, Logo. */
+    suspend fun info(): ServerInfo2 = http.get("$API_BASE/info").body()
+
+    /** Ein Spieler mit Nacht-der-Untoten-Statistiken, Rängen, Votes und Skin. */
+    suspend fun player(name: String): PlayerProfile =
+        http.get("$API_BASE/spieler/${encodeSegment(name)}").body()
+
+    /** News-Beiträge (Blog). */
+    suspend fun news(): List<NewsPost> = http.get("$API_BASE/news").body()
+
+    /** Ein einzelner Beitrag. */
+    suspend fun news(slug: String): NewsPost =
+        http.get("$API_BASE/news/${encodeSegment(slug)}").body()
+
+    /** Kommende Events und wöchentliche Termine. */
+    suspend fun events(): Events = http.get("$API_BASE/events").body()
+
+    /** Spielmodi. */
+    suspend fun gameModes(): List<GameMode> = http.get("$API_BASE/spielmodi").body()
+
+    /** Team-Mitglieder. */
+    suspend fun team(): List<TeamMember> = http.get("$API_BASE/team").body()
+
+    /** Partner. */
+    suspend fun partners(): List<Partner> = http.get("$API_BASE/partner").body()
+
+    /** Häufige Fragen. */
+    suspend fun faq(): List<FaqEntry> = http.get("$API_BASE/faq").body()
+
+    /** Regeln. */
+    suspend fun rules(): List<Rule> = http.get("$API_BASE/regeln").body()
+
+    /** Ideen-Vorschläge. */
+    suspend fun ideas(): List<Idea> = http.get("$API_BASE/ideen").body()
+
+    /** Übersicht aller Endpunkte (Selbstbeschreibung der API). */
+    suspend fun overview(): String = http.get("$API_BASE").body()
+
+    /** Pfad-Segmente (Spielername, Slug) URL-sicher machen. */
+    private fun encodeSegment(value: String): String =
+        value.trim().replace(" ", "%20")
+
     fun close() = http.close()
 
     companion object {
         const val BASE_URL = "https://mcaffen.de/api/web.php"
+        /** Offizielle, dokumentierte API (read-only, kein Login). */
+        const val API_BASE = "https://mcaffen.de/api"
     }
 }

@@ -10,13 +10,6 @@ kotlin {
             kotlinOptions.jvmTarget = "17"
         }
     }
-    // iOS-Frameworks: statisch, damit Xcode sie ohne Embedding-Tricks einbindet.
-    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
-        target.binaries.framework {
-            baseName = "Shared"
-            isStatic = true
-        }
-    }
 
     sourceSets {
         commonMain.dependencies {
@@ -31,9 +24,6 @@ kotlin {
         }
         androidMain.dependencies {
             implementation("io.ktor:ktor-client-okhttp:2.3.12")
-        }
-        iosMain.dependencies {
-            implementation("io.ktor:ktor-client-darwin:2.3.12")
         }
     }
 }

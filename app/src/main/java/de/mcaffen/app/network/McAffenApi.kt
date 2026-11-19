@@ -1,6 +1,7 @@
 package de.mcaffen.app.network
 
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -77,28 +78,62 @@ data class RawPlayerVote(
  */
 interface McAffenApi {
     /**
-     * Rangliste des NDU-Servers. `sort`: waves, kills, games, coins.
-     * `diff` (optional): easy, normal, hardcore.
+     * Rangliste über die dokumentierte API: `/api/rangliste?sort=waves|kills|games|coins`.
+     * Antwort ist eine schlichte Liste `[{name, score}]` – kein `p=`-Parameter mehr,
+     * deshalb entfällt die frühere Kodierungsfalle.
      */
-    // `encoded = true` ist hier entscheidend: Retrofit würde `/` und `&` sonst
-    // kodieren (%2F, %26) und der Server antwortet mit 404. Der Pfad muss so
-    // ankommen, wie die Website ihn aufruft: p=/ndu/top&sort=waves
-    @GET("web.php")
+    @GET("rangliste")
     suspend fun getLeaderboard(
-        @Query("p", encoded = true) path: String = "/ndu/top&sort=waves",
-    ): LeaderboardResponse
+        @Query("sort") sort: String = "waves",
+    ): List<RankRow>
 
-    /** Rangliste nach einem bestimmten Wert (waves, kills, games, coins). */
-    @GET("web.php")
-    suspend fun getLeaderboardSorted(
-        @Query("p", encoded = true) path: String,
-    ): LeaderboardResponse
+    /** Netzwerkstatus: `/api/status` (gleiches Format wie zuvor). */
+    @GET("status")
+    suspend fun getServerStatus(): RawStatus
 
-    /** Serverseitiges Netzwerk-Status-Objekt inkl. Serverliste. */
-    @GET("web.php")
-    suspend fun getServerStatus(
-        @Query("p", encoded = true) path: String = "/status",
-    ): RawStatus
+    /** Spielerprofil mit NDU-Statistiken, Rängen, Votes und Skin. */
+    @GET("spieler/{name}")
+    suspend fun getPlayer(@Path("name") name: String): PlayerProfile
+
+    /** Server-Info: Adresse, Version, Discord, Socials, Logo. */
+    @GET("info")
+    suspend fun getInfo(): ServerInfoDto
+
+    /** News-Beiträge. */
+    @GET("news")
+    suspend fun getNews(): List<NewsPostDto>
+
+    /** Ein einzelner Beitrag. */
+    @GET("news/{slug}")
+    suspend fun getNewsPost(@Path("slug") slug: String): NewsPostDto
+
+    /** Kommende Events und wöchentliche Termine. */
+    @GET("events")
+    suspend fun getEvents(): EventsDto
+
+    /** Spielmodi. */
+    @GET("spielmodi")
+    suspend fun getGameModes(): List<GameModeDto>
+
+    /** Team. */
+    @GET("team")
+    suspend fun getTeam(): List<TeamMemberDto>
+
+    /** Partner. */
+    @GET("partner")
+    suspend fun getPartners(): List<PartnerDto>
+
+    /** FAQ. */
+    @GET("faq")
+    suspend fun getFaq(): List<FaqEntryDto>
+
+    /** Regeln. */
+    @GET("regeln")
+    suspend fun getRules(): List<RuleDto>
+
+    /** Ideen. */
+    @GET("ideen")
+    suspend fun getIdeas(): List<IdeaDto>
 
     /** Bestätigte Votes eines Spielers (nur wenn das Vote-Plugin aktiv ist). */
     @GET("web.php")
@@ -106,3 +141,124 @@ interface McAffenApi {
         @Query("p", encoded = true) path: String,
     ): RawPlayerVotes
 }
+
+// ---------------------------------------------------------------------------
+// Neue, dokumentierte API: https://mcaffen.de/api
+// Read-only, kein Login, ?lang=en für englische Texte.
+// ---------------------------------------------------------------------------
+
+/** Ein Platz von `/api/rangliste?sort=waves|kills|games|coins`. */
+data class RankRow(
+    val name: String = "",
+    val score: Int = 0,
+)
+
+/** Nacht-der-Untoten-Werte eines Spielers (`/api/spieler/{name}`). */
+data class NduStats(
+    val bestWave: Int = 0,
+    val kills: Int = 0,
+    val games: Int = 0,
+    val coins: Int = 0,
+    val rankWaves: Int = 0,
+    val rankKills: Int = 0,
+    val lastPlayed: String? = null,
+)
+
+data class PlayerVoteStats(
+    val month: Int = 0,
+    val total: Int = 0,
+    val streak: Int = 0,
+)
+
+data class PlayerProfile(
+    val name: String = "",
+    val nachtDerUntoten: NduStats? = null,
+    val votes: PlayerVoteStats? = null,
+    val skin: String? = null,
+)
+
+data class SocialLink(
+    val name: String = "",
+    val key: String? = null,
+    val url: String = "",
+)
+
+data class ServerInfoDto(
+    val name: String = "",
+    val address: String = "",
+    val edition: String? = null,
+    val version: String? = null,
+    val website: String? = null,
+    val discord: String? = null,
+    val discordMembers: Int = 0,
+    val socials: List<SocialLink> = emptyList(),
+    val logo: String? = null,
+    val support: String? = null,
+)
+
+data class NewsPostDto(
+    val slug: String = "",
+    val title: String = "",
+    val excerpt: String? = null,
+    val image: String? = null,
+    val author: String? = null,
+    val category: String? = null,
+    val date: String? = null,
+    val url: String? = null,
+)
+
+data class EventItemDto(
+    val title: String = "",
+    val date: String? = null,
+    val time: String? = null,
+    val description: String? = null,
+    val weekday: String? = null,
+)
+
+data class EventsDto(
+    val upcoming: List<EventItemDto> = emptyList(),
+    val weekly: List<EventItemDto> = emptyList(),
+)
+
+data class GameModeDto(
+    val name: String = "",
+    val slug: String? = null,
+    val description: String? = null,
+    val image: String? = null,
+    val version: String? = null,
+    val online: Boolean = false,
+    val players: Int = 0,
+)
+
+data class TeamMemberDto(
+    val name: String = "",
+    val role: String? = null,
+    val description: String? = null,
+    val avatar: String? = null,
+)
+
+data class PartnerDto(
+    val name: String = "",
+    val description: String? = null,
+    val url: String? = null,
+    val logo: String? = null,
+)
+
+data class FaqEntryDto(
+    val question: String = "",
+    val answer: String = "",
+)
+
+data class RuleDto(
+    val title: String = "",
+    val text: String = "",
+    val category: String? = null,
+)
+
+data class IdeaDto(
+    val title: String = "",
+    val text: String? = null,
+    val status: String? = null,
+    val author: String? = null,
+    val votes: Int = 0,
+)
