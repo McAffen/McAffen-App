@@ -1,17 +1,13 @@
 # iOS-Version veröffentlichen
 
-> **Stand:** Aktuell gibt es nur den gemeinsamen Kern (`shared/`) mit iOS-Targets
-> (`iosArm64`, `iosSimulatorArm64`) und den Workflow `.github/workflows/ios.yml`
-> (Simulator-Tests und XCFramework auf einem GitHub-macOS-Runner – ohne eigenen Mac
-> oder iPhone). Der Ordner `ios/` mit der SwiftUI-Oberfläche, `ExportOptions.plist`
-> und der TestFlight-Job sind noch **nicht** vorhanden; die Abschnitte unten
-> beschreiben das Ziel. Die Runner-Angabe `macos-13` ist veraltet, es wird `macos-15` benutzt.
+> **Stand:** `shared/` und die native SwiftUI-Oberfläche unter `ios/` werden auf
+> `macos-15` gebaut. Der Workflow erzeugt das Xcode-Projekt, baut die App für den
+> iOS-Simulator und lädt `.app` sowie XCFramework als Artefakte hoch. Ein
+> signierter TestFlight-Job ist noch nicht enthalten.
 >
-> **Was der Workflow wirklich baut:** `:shared:iosSimulatorArm64Test` (Tests im
-> iOS-Simulator) und `:shared:assembleSharedXCFramework` (echtes iOS-Framework für
-> `iosArm64` und `iosSimulatorArm64`). Das XCFramework liegt als Artefakt
-> `Shared.xcframework` am Lauf. Die iOS-**App** baut er erst, wenn `ios/` mit dem
-> Xcode-Projekt existiert.
+> **Was der Workflow baut:** `:shared:iosSimulatorArm64Test`,
+> `:shared:assembleSharedXCFramework` und die SwiftUI-App für den Simulator.
+> Das XCFramework und die installierbare Simulator-App liegen als Artefakte am Lauf.
 >
 > **Tempo:** Der Workflow cached Gradle und den Kotlin/Native-Compiler (`~/.konan`).
 > Steht der Job lange auf „queued“, hat GitHub noch keinen macOS-Runner zugewiesen –
