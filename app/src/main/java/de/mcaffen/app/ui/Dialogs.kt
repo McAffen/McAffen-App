@@ -310,6 +310,7 @@ internal fun AboutDialog(
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val strings = LocalStrings.current
     AlertDialog(
         onDismissRequest = onClose,
         shape = RoundedCornerShape(28.dp),

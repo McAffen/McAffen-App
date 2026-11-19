@@ -1,6 +1,7 @@
 package de.mcaffen.app.ui.screens
 
 import de.mcaffen.app.ui.LocalStrings
+import de.mcaffen.app.ui.formatString
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

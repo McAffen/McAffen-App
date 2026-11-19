@@ -102,6 +102,7 @@ internal fun StatusScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val strings = LocalStrings.current
     var todayPeak by remember { mutableIntStateOf(settings.peakToday()) }
     LaunchedEffect(status) {
         status?.let { todayPeak = settings.touchPeakToday(it.onlinePlayers) }
@@ -217,11 +218,11 @@ internal fun StatusScreen(
                                         type = "text/plain"
                                         putExtra(
                                             Intent.EXTRA_TEXT,
-                                            LocalStrings.current["status.shareText"],
+                                            strings["status.shareText"],
                                         )
                                     }
                                     context.startActivity(
-                                        Intent.createChooser(share, LocalStrings.current["status.shareChooser"]),
+                                        Intent.createChooser(share, strings["status.shareChooser"]),
                                     )
                                 },
                             )
@@ -548,6 +549,7 @@ private fun MessageCard(message: String) {
 @Composable
 private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
     val context = LocalContext.current
+    val strings = LocalStrings.current
     // Bei jedem Zurückkehren in die App neu prüfen: WLAN kann sich ändern,
     // remember allein würde den alten Wert (z. B. "nicht im WLAN") festhalten.
     var netTick by remember { mutableStateOf(0) }
@@ -608,7 +610,7 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                     LanBridge.stop()
                     running = false
                 } else if (!onWifi) {
-                    error = LocalStrings.current["status.lan.errorWifi"]
+                    error = strings["status.lan.errorWifi"]
                 } else {
                     LanBridge.start(context).onSuccess {
                         running = true
@@ -617,9 +619,9 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                         onStarted()
                     }.onFailure {
                         running = false
-                        error = formatString(
+                        error = strings.format(
                             "status.lan.errorStart",
-                            it.message ?: formatString("status.lan.portBusy", LanBridge.PORT),
+                            it.message ?: strings.format("status.lan.portBusy", LanBridge.PORT),
                         )
                     }
                 }
