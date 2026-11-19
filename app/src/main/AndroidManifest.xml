@@ -3,6 +3,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <!-- Benachrichtigung über im Hintergrund gefundene Updates (Android 13+ Runtime-Berechtigung). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Damit die App ein selbst heruntergeladenes APK installieren darf
