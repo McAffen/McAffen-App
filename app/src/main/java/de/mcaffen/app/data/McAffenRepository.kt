@@ -83,6 +83,40 @@ class McAffenRepository(
 
     data class BoardResult(val entries: Int, val error: String?, val at: Long)
 
+
+    // --- Neue API-Endpunkte (https://mcaffen.de/api) ---------------------
+
+    /** Alle Ranglisten direkt von `/api/rangliste?sort=…` (kein Cache). */
+    suspend fun board(sort: String): List<PlayerStat> =
+        api.getLeaderboard(sort).map { PlayerStat(it.name, it.score) }
+
+    /** Spielerprofil mit NDU-Statistiken, Rängen, Votes und Skin. */
+    suspend fun player(name: String) = api.getPlayer(name.trim())
+
+    /** Server-Info: Adresse, Version, Discord, Socials, Logo. */
+    suspend fun info() = api.getInfo()
+
+    /** News-Beiträge. */
+    suspend fun news() = api.getNews()
+
+    /** Events und wöchentliche Termine. */
+    suspend fun events() = api.getEvents()
+
+    /** Spielmodi. */
+    suspend fun gameModes() = api.getGameModes()
+
+    /** Team. */
+    suspend fun team() = api.getTeam()
+
+    /** FAQ. */
+    suspend fun faq() = api.getFaq()
+
+    /** Regeln. */
+    suspend fun rules() = api.getRules()
+
+    /** Ideen. */
+    suspend fun ideas() = api.getIdeas()
+
     suspend fun refresh() = coroutineScope {
         // Rangliste und Status liegen auf demselben Endpunkt; jeder Teil wird
         // einzeln abgesichert, damit ein Fehler den anderen nicht mitreißt.

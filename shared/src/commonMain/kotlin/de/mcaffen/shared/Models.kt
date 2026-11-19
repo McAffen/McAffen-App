@@ -203,12 +203,12 @@ data class EventItem(
 @Serializable
 data class GameMode(
     val name: String = "",
-    val slug: String? = null,
+    val subtitle: String? = null,
     val description: String? = null,
+    val tags: List<String> = emptyList(),
     val image: String? = null,
-    val version: String? = null,
-    val online: Boolean = false,
-    val players: Int = 0,
+    val status: String? = null,
+    val statusLabel: String? = null,
 )
 
 /** Ein Teammitglied von `/api/team`. */

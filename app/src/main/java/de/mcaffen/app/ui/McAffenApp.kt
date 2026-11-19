@@ -40,6 +40,15 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.HowToVote
 import androidx.compose.material.icons.outlined.Speed
+import de.mcaffen.app.ui.screens.PlayerScreen
+import de.mcaffen.app.ui.screens.ModesScreen
+import de.mcaffen.app.ui.screens.NewsScreen
+import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.filled.Newspaper
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -103,6 +112,9 @@ import kotlinx.coroutines.launch
 
 private enum class Tab(val title: String) {
     LEADERBOARD("Rangliste"),
+    PLAYER("Spieler"),
+    NEWS("News"),
+    MODES("Modi"),
     VOTES("Voten"),
     STATUS("Status"),
     SETTINGS("Einstellungen"),
@@ -121,6 +133,77 @@ class McAffenViewModel(
 
     /** Diagnose der letzten Ranglisten-Aktualisierung (sichtbar im Leer-Zustand). */
     val boardResult = repository.lastBoardResult
+
+    // --- Neue Bereiche: Spieler, News, Spielmodi -------------------------
+    private val _profile = MutableStateFlow<de.mcaffen.app.network.PlayerProfile?>(null)
+    val profile = _profile.asStateFlow()
+
+    private val _profileLoading = MutableStateFlow(false)
+    val profileLoading = _profileLoading.asStateFlow()
+
+    private val _profileError = MutableStateFlow<String?>(null)
+    val profileError = _profileError.asStateFlow()
+
+    private val _news = MutableStateFlow<List<de.mcaffen.app.network.NewsPostDto>>(emptyList())
+    val news = _news.asStateFlow()
+
+    private val _newsLoading = MutableStateFlow(false)
+    val newsLoading = _newsLoading.asStateFlow()
+
+    private val _newsError = MutableStateFlow<String?>(null)
+    val newsError = _newsError.asStateFlow()
+
+    private val _modes = MutableStateFlow<List<de.mcaffen.app.network.GameModeDto>>(emptyList())
+    val modes = _modes.asStateFlow()
+
+    private val _modesLoading = MutableStateFlow(false)
+    val modesLoading = _modesLoading.asStateFlow()
+
+    /** Spielerprofil über `/api/spieler/{name}` laden. */
+    fun loadPlayer(name: String) {
+        val clean = name.trim()
+        if (clean.isBlank()) {
+            _profileError.value = "Bitte einen Namen eingeben."
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            _profileLoading.value = true
+            _profileError.value = null
+            runCatching { repository.player(clean) }
+                .onSuccess { _profile.value = it }
+                .onFailure {
+                    _profile.value = null
+                    _profileError.value = "Kein Profil für „$clean“ gefunden."
+                }
+            _profileLoading.value = false
+        }
+    }
+
+    /** News laden (`/api/news`). */
+    fun loadNews(force: Boolean = false) {
+        if (!force && _news.value.isNotEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _newsLoading.value = true
+            _newsError.value = null
+            runCatching { repository.news() }
+                .onSuccess { _news.value = it }
+                .onFailure {
+                    _newsError.value = "News konnten nicht geladen werden."
+                }
+            _newsLoading.value = false
+        }
+    }
+
+    /** Spielmodi laden (`/api/spielmodi`). */
+    fun loadModes(force: Boolean = false) {
+        if (!force && _modes.value.isNotEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _modesLoading.value = true
+            runCatching { repository.gameModes() }
+                .onSuccess { _modes.value = it }
+            _modesLoading.value = false
+        }
+    }
 
     /** Live-Test der Rangliste: schreibt das Ergebnis in die Snackbar. */
     fun testLeaderboard() {
@@ -359,6 +442,14 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     val boardLoading by vm.boardLoading.collectAsStateWithLifecycle()
     val voteBrowser by settings.voteBrowser.collectAsStateWithLifecycle()
     val boardResult by vm.boardResult.collectAsStateWithLifecycle()
+    val profile by vm.profile.collectAsStateWithLifecycle()
+    val profileLoading by vm.profileLoading.collectAsStateWithLifecycle()
+    val profileError by vm.profileError.collectAsStateWithLifecycle()
+    val news by vm.news.collectAsStateWithLifecycle()
+    val newsLoading by vm.newsLoading.collectAsStateWithLifecycle()
+    val newsError by vm.newsError.collectAsStateWithLifecycle()
+    val modes by vm.modes.collectAsStateWithLifecycle()
+    val modesLoading by vm.modesLoading.collectAsStateWithLifecycle()
     val animationsEnabled by settings.animationsEnabled.collectAsStateWithLifecycle()
     val darkMode by settings.darkMode.collectAsStateWithLifecycle()
     val colorName by settings.color.collectAsStateWithLifecycle()
@@ -429,6 +520,15 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                 UpdateInstaller.launchInstall(context, state.apk)
                 vm.resetDownload()
             }
+            else -> {}
+        }
+    }
+
+    // Daten der neuen Tabs erst laden, wenn der Tab geöffnet wird.
+    LaunchedEffect(selectedTab) {
+        when (selectedTab) {
+            Tab.NEWS -> vm.loadNews()
+            Tab.MODES -> vm.loadModes()
             else -> {}
         }
     }
@@ -533,6 +633,13 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         val subtitle = when (selectedTab) {
                             Tab.LEADERBOARD ->
                                 if (players.isEmpty()) "wird geladen …" else "${players.size} Spieler"
+                            Tab.PLAYER ->
+                                profile?.let { "${it.name} · Welle ${it.nachtDerUntoten?.bestWave ?: 0}" }
+                                    ?: "Name eingeben"
+                            Tab.NEWS ->
+                                if (news.isEmpty()) "Beiträge laden …" else "${news.size} Beiträge"
+                            Tab.MODES ->
+                                if (modes.isEmpty()) "Modi laden …" else "${modes.size} Spielmodi"
                             Tab.VOTES ->
                                 if (voteSites.isEmpty()) "Seiten laden …" else "${voteSites.size} Vote-Seiten"
                             Tab.STATUS -> status?.let { "${it.onlinePlayers} online" } ?: "live"
@@ -617,6 +724,12 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                                 when (tab) {
                                     Tab.LEADERBOARD ->
                                         if (selected) Icons.Filled.EmojiEvents else Icons.Outlined.EmojiEvents
+                                    Tab.PLAYER ->
+                                        if (selected) Icons.Filled.Person else Icons.Outlined.Person
+                                    Tab.NEWS ->
+                                        if (selected) Icons.Filled.Newspaper else Icons.Outlined.Newspaper
+                                    Tab.MODES ->
+                                        if (selected) Icons.Filled.SportsEsports else Icons.Outlined.SportsEsports
                                     Tab.VOTES ->
                                         if (selected) Icons.Filled.HowToVote else Icons.Outlined.HowToVote
                                     Tab.STATUS ->
@@ -685,6 +798,30 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         boardStatus = boardResult,
                         onTestLeaderboard = vm::testLeaderboard,
                     )
+                    Tab.PLAYER -> PlayerScreen(
+                        profile = profile,
+                        loading = profileLoading,
+                        error = profileError,
+                        initialName = myName,
+                        onSearch = vm::loadPlayer,
+                    )
+                    Tab.NEWS -> NewsScreen(
+                        posts = news,
+                        loading = newsLoading,
+                        error = newsError,
+                        onOpen = { url ->
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(url),
+                                    ),
+                                )
+                            }
+                        },
+                        onReload = { vm.loadNews(force = true) },
+                    )
+                    Tab.MODES -> ModesScreen(modes = modes, loading = modesLoading)
                     Tab.VOTES -> VoteScreen(
                         players = players,
                         voteSites = voteSites,
