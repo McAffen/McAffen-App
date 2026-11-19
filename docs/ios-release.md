@@ -8,6 +8,9 @@
 > **Was der Workflow baut:** `:shared:iosSimulatorArm64Test`,
 > `:shared:assembleSharedXCFramework` und die SwiftUI-App für den Simulator.
 > Das XCFramework und die installierbare Simulator-App liegen als Artefakte am Lauf.
+> Der Cross-platform-Release-Workflow startet erst nach einem erfolgreichen
+> iOS-Workflow auf `main`; schlägt der Apple-Build fehl, wird kein Android-Release
+> veröffentlicht.
 >
 > **Tempo:** Der Workflow cached Gradle und den Kotlin/Native-Compiler (`~/.konan`).
 > Steht der Job lange auf „queued“, hat GitHub noch keinen macOS-Runner zugewiesen –

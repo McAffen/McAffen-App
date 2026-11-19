@@ -35,10 +35,6 @@ on:
       - '.github/workflows/ios.yml'
   push:
     branches: [main]
-    paths:
-      - 'shared/**'
-      - 'ios/**'
-      - '.github/workflows/ios.yml'
   workflow_dispatch:
 
 concurrency:

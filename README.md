@@ -17,7 +17,7 @@ App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
 - **Datenschutz:** Die App enthält keine Zugangsdaten und protokolliert keine Netzwerk-URLs oder Spielernamen
 - **Offline-Fallback:** Room speichert den letzten erfolgreichen Abruf
 - **Updates:** Beim Start wird das neueste GitHub-Release geprüft; bei einer höheren Version erscheint ein Dialog mit dem Release-Link
-- **CI/CD:** Pull Requests werden bei jedem Update gebaut und gelintet; Pushes auf `main` starten den Check ebenfalls. Tags wie `v1.0.0` erzeugen ein GitHub Release
+- **CI/CD:** Pull Requests werden bei jedem Update gebaut und gelintet; Pushes auf `main` starten Android- und iOS-Checks. Ein Release wird erst nach erfolgreichem iOS-Workflow erzeugt, damit kein Android-Release vor dem Apple-Build erscheint
 - **Offene Vorhaben:** als Issue-Vorlagen in [`docs/issues/`](docs/issues) – iOS ohne eigenes Gerät und Mehrsprachigkeit
 
 Die API-Endpunkte sind derzeit gemäß der vorgegebenen Annahme modelliert. Falls die Website abweichende JSON-Formate liefert, müssen nur die Modelle bzw. Retrofit-Adapter angepasst werden.
