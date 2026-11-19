@@ -6,6 +6,14 @@
 > oder iPhone). Der Ordner `ios/` mit der SwiftUI-Oberfläche, `ExportOptions.plist`
 > und der TestFlight-Job sind noch **nicht** vorhanden; die Abschnitte unten
 > beschreiben das Ziel. Die Runner-Angabe `macos-13` ist veraltet, es wird `macos-15` benutzt.
+>
+> **Tempo:** Der Workflow cached Gradle und den Kotlin/Native-Compiler (`~/.konan`).
+> Steht der Job lange auf „queued“, hat GitHub noch keinen macOS-Runner zugewiesen –
+> dann abbrechen und neu starten, ein zweiter Workflow-Lauf bringt nichts.
+>
+> **Texte für iOS:** `app/src/main/java/de/mcaffen/app/ui/Strings.kt` enthält die
+> Oberflächentexte auf Deutsch und Englisch. Dieselben Schlüssel gehören in die
+> SwiftUI-Seite, damit beide Apps gleich sprechen.
 
 Die iOS-App teilt sich den Datenkern mit Android: das Kotlin-Modul `shared/`
 spricht die mcaffen.de-API an, die SwiftUI-App in `ios/` ist die Oberfläche.

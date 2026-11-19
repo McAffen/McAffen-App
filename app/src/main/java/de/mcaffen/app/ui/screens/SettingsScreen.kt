@@ -68,6 +68,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import de.mcaffen.app.BuildConfig
+import de.mcaffen.app.ui.AppLanguage
+import de.mcaffen.app.ui.LocalStrings
 import de.mcaffen.app.ui.McAffenBrand
 import de.mcaffen.app.ui.ThemeOptions
 import de.mcaffen.app.ui.components.AnimatedBackdrop
@@ -114,8 +116,11 @@ internal fun SettingsScreen(
     modifier: Modifier = Modifier,
     voteBrowser: String = de.mcaffen.app.data.VoteBrowser.IN_APP,
     onVoteBrowserChange: (String) -> Unit = {},
+    language: String = AppLanguage.SYSTEM,
+    onLanguageChange: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val strings = LocalStrings.current
     val notifPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { }
@@ -149,7 +154,7 @@ internal fun SettingsScreen(
                                 fontWeight = FontWeight.Black,
                             )
                             Text(
-                                if (playerName.isBlank()) "Noch kein Spielername" else playerName,
+                                if (playerName.isBlank()) strings["settings.noName"] else playerName,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -161,7 +166,7 @@ internal fun SettingsScreen(
 
             item("name") {
                 SettingsCard(
-                    title = "Profil",
+                    title = strings["settings.profile"],
                     icon = Icons.Default.Person,
                 ) {
                     OutlinedTextField(
@@ -170,9 +175,9 @@ internal fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
-                        label = { Text("Dein Minecraft-Name") },
+                        label = { Text(strings["settings.name"]) },
                         supportingText = {
-                            Text("Wird beim Voten vorausgefüllt und hebt dich in der Rangliste hervor.")
+                            Text(strings["settings.name.hint"])
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -184,21 +189,21 @@ internal fun SettingsScreen(
 
             item("appearance") {
                 SettingsCard(
-                    title = "Darstellung",
+                    title = strings["settings.appearance"],
                     icon = Icons.Default.Palette,
                 ) {
                     Text(
-                        "Dark-Mode",
+                        strings["settings.darkMode"],
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     SegmentedOptions(
-                        options = ThemeOptions.darkModes,
+                        options = ThemeOptions.darkModes(),
                         selected = darkMode,
                         onSelect = onDarkModeChange,
                     )
                     Text(
-                        "Farbschema",
+                        strings["settings.colorScheme"],
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -207,7 +212,7 @@ internal fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        ThemeOptions.colors.forEach { (value, label) ->
+                        ThemeOptions.colors().forEach { (value, label) ->
                             ColorSwatch(
                                 label = label,
                                 color = ThemeOptions.previewColor(value),
@@ -219,27 +224,49 @@ internal fun SettingsScreen(
                 }
             }
 
+            item("language") {
+                SettingsCard(
+                    title = strings["settings.language"],
+                    icon = Icons.Default.Language,
+                ) {
+                    Text(
+                        strings["settings.language.hint"],
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SegmentedOptions(
+                        options = listOf(
+                            AppLanguage.SYSTEM to strings["settings.language.system"],
+                            AppLanguage.GERMAN.code to AppLanguage.GERMAN.label,
+                            AppLanguage.ENGLISH.code to AppLanguage.ENGLISH.label,
+                        ),
+                        selected = language,
+                        onSelect = onLanguageChange,
+                    )
+                }
+            }
+
             item("effects") {
                 SettingsCard(
-                    title = "Effekte & Komfort",
+                    title = strings["settings.effects"],
                     icon = Icons.Default.AutoAwesome,
                 ) {
                     SettingsSwitchRow(
-                        title = "Animationen",
-                        subtitle = "Übergänge, Pulse und Effekte in der App.",
+                        title = strings["settings.animations"],
+                        subtitle = strings["settings.animations.hint"],
                         checked = animationsEnabled,
                         onCheckedChange = onAnimationsChange,
                     )
                     SettingsSwitchRow(
-                        title = "Haptisches Feedback",
-                        subtitle = "Sanftes Vibrieren bei Aktionen.",
+                        title = strings["settings.haptics"],
+                        subtitle = strings["settings.haptics.hint"],
                         icon = Icons.Default.Vibration,
                         checked = hapticsEnabled,
                         onCheckedChange = onHapticsChange,
                     )
                     SettingsSwitchRow(
-                        title = "Kompakte Ansicht",
-                        subtitle = "Weniger Abstände und kleinere Karten.",
+                        title = strings["settings.compact"],
+                        subtitle = strings["settings.compact.hint"],
                         checked = compactMode,
                         onCheckedChange = onCompactModeChange,
                     )
@@ -248,12 +275,12 @@ internal fun SettingsScreen(
 
             item("updates") {
                 SettingsCard(
-                    title = "Updates",
+                    title = strings["settings.updates"],
                     icon = Icons.Default.SystemUpdate,
                 ) {
                     SettingsSwitchRow(
-                        title = "Automatisch nach Updates suchen",
-                        subtitle = "Beim Start, beim Zurückkehren und ca. alle 12 Stunden im Hintergrund.",
+                        title = strings["settings.updates.auto"],
+                        subtitle = strings["settings.updates.auto.hint"],
                         checked = updateChecksEnabled,
                         onCheckedChange = { enabled ->
                             // Android 13+: Benachrichtigungserlaubnis nachfragen,
@@ -275,12 +302,12 @@ internal fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            "Zuletzt geprüft: ${lastCheckText(lastUpdateCheck)}",
+                            formatString(strings, "settings.updates.lastCheck", lastCheckText(lastUpdateCheck, strings)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = onCheckForUpdate) { Text("Jetzt prüfen") }
+                        TextButton(onClick = onCheckForUpdate) { Text(strings["settings.updates.checkNow"]) }
                     }
                     // Manueller Weg zum Update: prüfen, herunterladen und in der
                     // App installieren – ohne Umweg über GitHub.
@@ -297,7 +324,7 @@ internal fun SettingsScreen(
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Nach Update suchen & installieren")
+                        Text(strings["settings.updates.searchInstall"])
                     }
                 }
             }
@@ -305,12 +332,11 @@ internal fun SettingsScreen(
             // Vote-Links: eingebauter Browser oder normaler Browser.
             item("votebrowser") {
                 SettingsCard(
-                    title = "Vote-Links öffnen",
+                    title = strings["settings.voteBrowser"],
                     icon = Icons.Default.Language,
                 ) {
                     Text(
-                        "Der eingebaute Browser bleibt in der App – mit „Zurück“ landest du " +
-                            "wieder in der Vote-Liste. Der normale Browser öffnet einen eigenen Tab.",
+                        strings["settings.voteBrowser.hint"],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -323,8 +349,8 @@ internal fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         listOf(
-                            de.mcaffen.app.data.VoteBrowser.IN_APP to "In der App",
-                            de.mcaffen.app.data.VoteBrowser.EXTERNAL to "Normaler Browser",
+                            de.mcaffen.app.data.VoteBrowser.IN_APP to strings["settings.voteBrowser.inApp"],
+                            de.mcaffen.app.data.VoteBrowser.EXTERNAL to strings["settings.voteBrowser.external"],
                         ).forEach { (mode, label) ->
                             val active = voteBrowser == mode
                             Surface(
@@ -351,7 +377,7 @@ internal fun SettingsScreen(
 
             item("actions") {
                 SettingsCard(
-                    title = "Aktionen",
+                    title = strings["settings.actions"],
                     icon = Icons.Default.Refresh,
                 ) {
                     Button(
@@ -362,7 +388,7 @@ internal fun SettingsScreen(
                         shape = RoundedCornerShape(14.dp),
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text("  Daten aktualisieren", fontWeight = FontWeight.Bold)
+                        Text(strings["settings.actions.refresh"], fontWeight = FontWeight.Bold)
                     }
                     OutlinedButton(
                         onClick = onReplayIntro,
@@ -372,7 +398,7 @@ internal fun SettingsScreen(
                         shape = RoundedCornerShape(14.dp),
                     ) {
                         Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text("  Einführung noch einmal ansehen")
+                        Text(strings["settings.actions.replayIntro"])
                     }
                     OutlinedButton(
                         onClick = onOpenAbout,
@@ -382,7 +408,7 @@ internal fun SettingsScreen(
                         shape = RoundedCornerShape(14.dp),
                     ) {
                         Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text("  Über die App")
+                        Text(strings["settings.actions.about"])
                     }
                     OutlinedButton(
                         onClick = {
@@ -400,23 +426,23 @@ internal fun SettingsScreen(
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
-                        Text("  Auf GitHub öffnen")
+                        Text(strings["settings.actions.github"])
                     }
                 }
             }
 
             item("legal") {
                 SettingsCard(
-                    title = "Rechtliches",
+                    title = strings["settings.legal"],
                     icon = Icons.Default.Gavel,
                 ) {
                     Text(
-                        "Rechtstexte werden automatisch mit mcaffen.de synchronisiert." +
+                        strings["settings.legal.hint"] +
                             if (legalCached) {
                                 val formatter = SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale.getDefault())
-                                " Zuletzt: ${formatter.format(Date(legalLastSync))} Uhr."
+                                formatString(strings, "settings.legal.lastSync", formatter.format(Date(legalLastSync)))
                             } else {
-                                " Aktuell werden die integrierten Texte angezeigt."
+                                strings["settings.legal.offline"]
                             },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -425,9 +451,9 @@ internal fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        LegalChip("Impressum") { onOpenLegal("impressum") }
-                        LegalChip("Datenschutz") { onOpenLegal("datenschutz") }
-                        LegalChip("AGB") { onOpenLegal("agb") }
+                        LegalChip(strings["settings.legal.imprint"]) { onOpenLegal("impressum") }
+                        LegalChip(strings["settings.legal.privacy"]) { onOpenLegal("datenschutz") }
+                        LegalChip(strings["settings.legal.terms"]) { onOpenLegal("agb") }
                     }
                 }
             }
@@ -438,12 +464,12 @@ internal fun SettingsScreen(
                     shape = RoundedCornerShape(22.dp),
                     contentPadding = 16.dp,
                 ) {
-                    SectionTitle("App-Info")
-                    InfoRow("Version", version)
-                    InfoRow("Server", "mcaffen.de")
+                    SectionTitle(strings["settings.info"])
+                    InfoRow(strings["settings.info.version"], version)
+                    InfoRow(strings["settings.info.server"], "mcaffen.de")
                     InfoRow("API", "https://mcaffen.de/api")
                     Text(
-                        "Inoffizielle App für den Minecraft-Server mcaffen.de. Nicht mit Mojang oder Microsoft verbunden.",
+                        strings["settings.info.disclaimer"],
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -667,18 +693,18 @@ internal fun AboutContent() {
             Column(Modifier.padding(start = 12.dp)) {
                 Text("McAffen-App", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Version ${BuildConfig.VERSION_NAME}",
+                    formatString("subtitle.version", BuildConfig.VERSION_NAME),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
+        val strings = LocalStrings.current
         Text(
-            "Inoffizielle App für den Minecraft-Server mcaffen.de – Rangliste, Voten und " +
-                "Live-Status in einer Oberfläche.",
+            strings["about.text"],
             style = MaterialTheme.typography.bodySmall,
         )
-        PillChip(text = "Keine Zugangsdaten · kein Tracking", color = McAffenBrand.colors.positive)
+        PillChip(text = strings["about.badge"], color = McAffenBrand.colors.positive)
         Spacer(Modifier.height(2.dp))
     }
 }

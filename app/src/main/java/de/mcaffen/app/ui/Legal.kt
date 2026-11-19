@@ -186,7 +186,7 @@ fun LegalDialog(document: LegalDocument, onDismiss: () -> Unit) {
                     }
                 }
                 Text(
-                    "Vollständige und aktuelle Version: ${document.sourceUrl}",
+                    formatString("about.legalFooter", document.sourceUrl),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -196,10 +196,10 @@ fun LegalDialog(document: LegalDocument, onDismiss: () -> Unit) {
             Button(onClick = {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(document.sourceUrl)))
                 onDismiss()
-            }) { Text("Im Web öffnen") }
+            }) { Text(LocalStrings.current["about.openWeb"]) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Schließen") }
+            TextButton(onClick = onDismiss) { Text(LocalStrings.current["common.close"]) }
         },
     )
 }

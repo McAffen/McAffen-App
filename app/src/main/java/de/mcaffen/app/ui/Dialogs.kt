@@ -93,11 +93,12 @@ internal fun UpdateDialog(
         shape = RoundedCornerShape(28.dp),
         title = {
             Text(
+                val strings = LocalStrings.current
                 when {
-                    release.critical -> "Update erforderlich ⚠️"
-                    blocked != null -> "Update blockiert"
-                    failed != null -> "Update fehlgeschlagen"
-                    else -> "Update verfügbar 🚀"
+                    release.critical -> strings["update.required"]
+                    blocked != null -> strings["update.blocked"]
+                    failed != null -> strings["update.failed"]
+                    else -> strings["update.available"]
                 },
                 style = MaterialTheme.typography.headlineSmall,
             )
@@ -108,17 +109,17 @@ internal fun UpdateDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    VersionBadge("Aktuell", BuildConfig.VERSION_NAME)
+                    VersionBadge(LocalStrings.current["update.current"], BuildConfig.VERSION_NAME)
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "aktualisiert auf",
+                        contentDescription = LocalStrings.current["update.cd.updatedTo"],
                         tint = MaterialTheme.colorScheme.primary,
                     )
-                    VersionBadge("Neu", release.tagName.removePrefix("v"), highlighted = true)
+                    VersionBadge(LocalStrings.current["update.new"], release.tagName.removePrefix("v"), highlighted = true)
                 }
                 if (release.critical) {
                     Text(
-                        "Dies ist ein kritisches Update und muss installiert werden.",
+                        LocalStrings.current["update.critical"],
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.error,
@@ -179,31 +180,27 @@ internal fun UpdateDialog(
                     }
                 }
                 Text(
-                    "Das Update wird direkt in der App heruntergeladen und über der " +
-                        "installierten Version installiert – deine Daten und Einstellungen " +
-                        "bleiben erhalten.",
+                    LocalStrings.current["update.explanation"],
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (hasApk) {
                     Text(
-                        "Hinweis: Android könnte beim Installieren warnen – das passiert bei Apps, " +
-                            "die nicht aus dem Play Store kommen, häufig. Tippe bei der Warnung auf " +
-                            "„Details“ und wähle „Trotzdem installieren“.",
+                        LocalStrings.current["update.warning"],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 formatBytes(release.assetSize)?.let { size ->
                     Text(
-                        "Downloadgröße: $size",
+                        formatString("update.size", size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (onCellular && state is DownloadState.Idle) {
                     Text(
-                        "Du nutzt gerade mobile Daten. Der Update-Download kann Datenvolumen verbrauchen.",
+                        LocalStrings.current["update.cellular"],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -216,31 +213,25 @@ internal fun UpdateDialog(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             Text(
-                                "Lädt herunter … ${state.progress}%",
+                                formatString("update.downloadingPercent", state.progress),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         } else {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
-                            Text("Lädt herunter …", style = MaterialTheme.typography.bodySmall)
+                            Text(LocalStrings.current["update.downloading"], style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     is DownloadState.Failed -> Text(
-                        "Fehler: ${state.message}\nDu kannst es erneut versuchen.",
+                        formatString("update.error", state.message),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                     is DownloadState.Blocked -> Text(
+                        val strings = LocalStrings.current
                         when (state.verification) {
-                            ApkVerification.Corrupt ->
-                                "Die heruntergeladene Datei ist unvollständig oder beschädigt. " +
-                                    "Bitte erneut herunterladen."
-                            ApkVerification.Incompatible ->
-                                "Diese APK passt nicht als Update über die installierte Version " +
-                                    "(Paket-ID oder Version). Bitte erneut prüfen."
-                            else ->
-                                "Die APK ist mit einem anderen Schlüssel signiert als die " +
-                                    "installierte App. Android erlaubt die Überinstallation dann " +
-                                    "nicht. Hier hilft nur eine Neuinstallation der App."
+                            ApkVerification.Corrupt -> strings["update.corrupt"]
+                            ApkVerification.Incompatible -> strings["update.incompatible"]
+                            else -> strings["update.otherKey"]
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
@@ -249,8 +240,7 @@ internal fun UpdateDialog(
                 }
                 if (!canInstall && state is DownloadState.Idle && hasApk) {
                     Text(
-                        "Einmalig erforderlich: Erlaube der McAffen-App, „Apps aus unbekannten " +
-                            "Quellen“ zu installieren. Danach aktualisiert sich die App direkt selbst.",
+                        LocalStrings.current["update.allow"],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -260,25 +250,26 @@ internal fun UpdateDialog(
         confirmButton = {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 when {
-                    downloading -> TextButton(onClick = {}, enabled = false) { Text("Lädt …") }
+                    val strings = LocalStrings.current
+                    downloading -> TextButton(onClick = {}, enabled = false) { Text(strings["update.loading"]) }
                     failed != null || blocked?.verification == ApkVerification.Corrupt ->
-                        Button(onClick = onRetry) { Text("Erneut versuchen") }
+                        Button(onClick = onRetry) { Text(strings["update.retry"]) }
                     !hasApk || (blocked != null && blocked.verification != ApkVerification.Corrupt) ->
-                        Button(onClick = onRetry) { Text("Jetzt herunterladen") }
-                    !canInstall -> Button(onClick = onEnableInstalls) { Text("Installation erlauben") }
+                        Button(onClick = onRetry) { Text(strings["update.download"]) }
+                    !canInstall -> Button(onClick = onEnableInstalls) { Text(strings["update.allowInstalls"]) }
                     onCellular && !cellularConfirmed -> Button(onClick = { cellularConfirmed = true }) {
-                        Text("Über mobile Daten bestätigen")
+                        Text(strings["update.confirmCellular"])
                     }
-                    else -> Button(onClick = onInstall) { Text("Jetzt aktualisieren") }
+                    else -> Button(onClick = onInstall) { Text(strings["update.installNow"]) }
                 }
                 // GitHub nur noch als Notfallweg – der normale Weg ist der
                 // direkte Download und die Installation in der App.
-                TextButton(onClick = onOpenGitHub) { Text("Notfall: Release auf GitHub öffnen") }
+                TextButton(onClick = onOpenGitHub) { Text(LocalStrings.current["update.github"]) }
             }
         },
         dismissButton = {
             if (dismissible) {
-                TextButton(onClick = onLater) { Text("Später") }
+                TextButton(onClick = onLater) { Text(LocalStrings.current["update.later"]) }
             }
         },
     )
@@ -324,7 +315,7 @@ internal fun AboutDialog(
     AlertDialog(
         onDismissRequest = onClose,
         shape = RoundedCornerShape(28.dp),
-        title = { Text("Über McAffen-App", style = MaterialTheme.typography.titleLarge) },
+        title = { Text(LocalStrings.current["about.title"], style = MaterialTheme.typography.titleLarge) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 AboutContent()
@@ -349,14 +340,15 @@ internal fun AboutDialog(
                     ) { Text("github.com/McAffen/McAffen-App") }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { onOpenLegal("impressum") }) { Text("Impressum") }
-                    TextButton(onClick = { onOpenLegal("datenschutz") }) { Text("Datenschutz") }
-                    TextButton(onClick = { onOpenLegal("agb") }) { Text("AGB") }
+                    val strings = LocalStrings.current
+                    TextButton(onClick = { onOpenLegal("impressum") }) { Text(strings["settings.legal.imprint"]) }
+                    TextButton(onClick = { onOpenLegal("datenschutz") }) { Text(strings["settings.legal.privacy"]) }
+                    TextButton(onClick = { onOpenLegal("agb") }) { Text(strings["settings.legal.terms"]) }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onClose) { Text("Schließen") }
+            Button(onClick = onClose) { Text(LocalStrings.current["common.close"]) }
         },
     )
 }

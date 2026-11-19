@@ -58,46 +58,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.mcaffen.app.R
+import de.mcaffen.app.ui.LocalStrings
 import de.mcaffen.app.ui.McAffenBrand
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Eine Folie – die Texte stehen unter den Schlüsseln in [Strings]. */
 private data class WelcomeSlide(
-    val eyebrow: String,
-    val title: String,
-    val description: String,
+    val keyPrefix: String,
     val emoji: String,
 )
 
 private val slides = listOf(
-    WelcomeSlide(
-        eyebrow = "Willkommen",
-        title = "Willkommen in der McAffen-App",
-        description = "Rangliste, Voten und Live-Status des Minecraft-Netzwerks mcaffen.de – " +
-            "schnell, schön und ohne Umweg über den Browser.",
-        emoji = "🐵",
-    ),
-    WelcomeSlide(
-        eyebrow = "Rangliste",
-        title = "Sieh, wo du stehst",
-        description = "Podium, dein eigener Rang und der Abstand zu Platz 1 – live, mit " +
-            "Trend-Pfeilen für jeden Punkt, den du sammelst.",
-        emoji = "🏆",
-    ),
-    WelcomeSlide(
-        eyebrow = "Voten",
-        title = "Ein Tipp, viele Belohnungen",
-        description = "Alle Vote-Seiten an einem Ort, mit Countdown bis zum nächsten Vote " +
-            "und automatisch eingesetztem Spielernamen.",
-        emoji = "🗳️",
-    ),
-    WelcomeSlide(
-        eyebrow = "Live-Status",
-        title = "Immer up to date",
-        description = "Spielerzahlen, Server-Übersicht und Meldungen – dazu Farbwelten, " +
-            "Dark-Mode und eigene Effekte.",
-        emoji = "⚡",
-    ),
+    WelcomeSlide("welcome", "🐵"),
+    WelcomeSlide("welcome.2", "🏆"),
+    WelcomeSlide("welcome.3", "🗳️"),
+    WelcomeSlide("welcome.4", "⚡"),
 )
 
 /**
@@ -155,7 +131,7 @@ fun WelcomeFlow(
                     }
                 }
                 TextButton(onClick = onSkip) {
-                    Text("Überspringen", style = MaterialTheme.typography.labelLarge)
+                    Text(LocalStrings.current["welcome.skip"], style = MaterialTheme.typography.labelLarge)
                 }
             }
 
@@ -218,12 +194,11 @@ fun WelcomeFlow(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text(
-                            "Wie heißt du in Minecraft?",
+                            LocalStrings.current["welcome.nameTitle"],
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            "Damit heben wir dich in der Rangliste hervor und füllen deinen " +
-                                "Namen beim Voten automatisch ein.",
+                            LocalStrings.current["welcome.nameHint"],
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -233,7 +208,7 @@ fun WelcomeFlow(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
-                            placeholder = { Text("z. B. AffenBoss") },
+                            placeholder = { Text(LocalStrings.current["welcome.namePlaceholder"]) },
                             leadingIcon = { Text("🐵", fontSize = 18.sp) },
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -253,7 +228,7 @@ fun WelcomeFlow(
                         ) {
                             Icon(Icons.Default.Check, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Los geht's", fontWeight = FontWeight.Bold)
+                            Text(LocalStrings.current["welcome.start"], fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -267,12 +242,12 @@ fun WelcomeFlow(
                         .height(52.dp),
                     shape = RoundedCornerShape(16.dp),
                 ) {
-                    Text("Weiter", fontWeight = FontWeight.Bold)
+                    Text(LocalStrings.current["welcome.next"], fontWeight = FontWeight.Bold)
                     Spacer(Modifier.width(8.dp))
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                 }
                 TextButton(onClick = onSkip, modifier = Modifier.padding(top = 4.dp)) {
-                    Text("Später einrichten")
+                    Text(LocalStrings.current["welcome.later"])
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -301,19 +276,20 @@ private fun SlideContent(
             GlowHalo(size = 240.dp, enabled = animationsEnabled)
             FloatingEmoji(slide.emoji, animationsEnabled)
         }
+        val strings = LocalStrings.current
         PillChip(
-            text = slide.eyebrow.uppercase(),
+            text = strings["${slide.keyPrefix}.eyebrow"].uppercase(),
             color = MaterialTheme.colorScheme.primary,
             containerAlpha = 0.16f,
         )
         Text(
-            slide.title,
+            strings["${slide.keyPrefix}.title"],
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            slide.description,
+            strings["${slide.keyPrefix}.text"],
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

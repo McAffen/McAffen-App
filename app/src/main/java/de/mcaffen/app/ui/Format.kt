@@ -7,9 +7,15 @@ import java.util.Date
 import java.util.Locale
 import de.mcaffen.app.data.UpdateConfig
 
-/** Punkte mit deutschem Tausendertrennzeichen. */
+/** Punkte mit Tausendertrennzeichen der gewählten Sprache. */
 internal fun formatScore(score: Int): String =
     NumberFormat.getIntegerInstance(Locale.GERMANY).format(score)
+
+/** Punkte im Stil der gewählten App-Sprache: Deutsch „1.234“, Englisch „1,234“. */
+internal fun formatScore(score: Int, language: AppLanguage): String =
+    NumberFormat.getIntegerInstance(
+        if (language == AppLanguage.ENGLISH) Locale.US else Locale.GERMANY,
+    ).format(score)
 
 /** Bytes leserlich formatieren (z. B. „8,4 MB“) für die Downloadgröße-Anzeige. */
 internal fun formatBytes(bytes: Long?): String? {
@@ -22,17 +28,21 @@ internal fun formatBytes(bytes: Long?): String? {
 }
 
 /** Freundliche Darstellung, wie lange die letzte Update-Prüfung her ist. */
-internal fun lastCheckText(timestamp: Long): String {
-    if (timestamp <= 0L) return "Noch nie"
+internal fun lastCheckText(timestamp: Long, strings: Strings): String {
+    if (timestamp <= 0L) return strings["time.never"]
     val minutes = (System.currentTimeMillis() - timestamp) / 60_000
     return when {
-        minutes <= 0 -> "gerade eben"
-        minutes == 1L -> "vor 1 Minute"
-        minutes < 60 -> "vor $minutes Minuten"
-        minutes < 120 -> "vor 1 Stunde"
-        minutes < 60 * 24 -> "vor ${minutes / 60} Stunden"
-        minutes < 60 * 48 -> "vor 1 Tag"
-        else -> SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale.getDefault()).format(Date(timestamp)) + " Uhr"
+        minutes <= 0 -> strings["time.justNow"]
+        minutes == 1L -> strings["time.minute"]
+        minutes < 60 -> strings.format("time.minutes", minutes)
+        minutes < 120 -> strings["time.hour"]
+        minutes < 60 * 24 -> strings.format("time.hours", minutes / 60)
+        minutes < 60 * 48 -> strings["time.day"]
+        minutes < 60 * 24 * 30 -> strings.format("time.days", minutes / (60 * 24))
+        else -> strings.format(
+            "time.clock",
+            SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale.getDefault()).format(Date(timestamp)),
+        )
     }
 }
 
@@ -125,14 +135,15 @@ internal fun formatRemaining(remainingMs: Long): String {
 }
 
 /** Kompakte Restzeit für Chips (z. B. „3 Std 12 Min“ statt 03:12:44). */
-internal fun formatRemainingShort(remainingMs: Long): String {
+internal fun formatRemainingShort(remainingMs: Long, language: AppLanguage = AppLanguage.GERMAN): String {
     val totalMinutes = (remainingMs / 60_000).coerceAtLeast(0)
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
+    val english = language == AppLanguage.ENGLISH
     return when {
-        hours > 0 -> "$hours Std $minutes Min"
-        minutes > 0 -> "$minutes Min"
-        else -> "unter 1 Min"
+        hours > 0 -> if (english) "$hours h $minutes min" else "$hours Std $minutes Min"
+        minutes > 0 -> if (english) "$minutes min" else "$minutes Min"
+        else -> if (english) "under 1 min" else "unter 1 Min"
     }
 }
 

@@ -69,6 +69,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -116,12 +117,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-private enum class Tab(val title: String) {
-    LEADERBOARD("Rangliste"),
-    NEWS("News"),
-    VOTES("Voten"),
-    STATUS("Status"),
-    SETTINGS("Einstellungen"),
+private enum class Tab(val titleKey: String) {
+    LEADERBOARD("tab.leaderboard"),
+    NEWS("tab.news"),
+    VOTES("tab.votes"),
+    STATUS("tab.status"),
+    SETTINGS("tab.settings"),
 }
 
 /** Spielerprofil als eigenes Blatt, erreichbar über den Kopf oben rechts. */
@@ -166,11 +167,17 @@ class McAffenViewModel(
     private val _modesLoading = MutableStateFlow(false)
     val modesLoading = _modesLoading.asStateFlow()
 
+    /** Texte in der aktiven Sprache (das ViewModel kennt keine Composables). */
+    private val strings: Strings
+        get() = Strings.of(AppLanguage.resolve(settings.language.value))
+
+    private fun translated(key: String): String = strings[key]
+
     /** Spielerprofil über `/api/spieler/{name}` laden. */
     fun loadPlayer(name: String) {
         val clean = name.trim()
         if (clean.isBlank()) {
-            _profileError.value = "Bitte einen Namen eingeben."
+            _profileError.value = translated("player.enterName")
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
@@ -180,7 +187,7 @@ class McAffenViewModel(
                 .onSuccess { _profile.value = it }
                 .onFailure {
                     _profile.value = null
-                    _profileError.value = "Kein Profil für „$clean“ gefunden."
+                    _profileError.value = strings.format("player.empty", clean)
                 }
             _profileLoading.value = false
         }
@@ -195,7 +202,7 @@ class McAffenViewModel(
             runCatching { repository.news() }
                 .onSuccess { _news.value = it }
                 .onFailure {
-                    _newsError.value = "News konnten nicht geladen werden."
+                    _newsError.value = translated("news.loadError")
                 }
             _newsLoading.value = false
         }
@@ -217,9 +224,17 @@ class McAffenViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val result = runCatching { repository.leaderboard("waves") }
             result.onSuccess { list ->
-                _updateNotice.value = "Rangliste OK: ${list.size} Spieler, oben ${list.firstOrNull()?.name ?: "–"}"
+                _updateNotice.value = strings.format(
+                    "update.notice.boardOk",
+                    list.size,
+                    list.firstOrNull()?.name ?: "–",
+                )
             }.onFailure { error ->
-                _updateNotice.value = "Rangliste FEHLER: ${error.javaClass.simpleName}: ${error.message}"
+                _updateNotice.value = strings.format(
+                    "update.notice.boardFailed",
+                    error.javaClass.simpleName,
+                    error.message.orEmpty(),
+                )
             }
         }
     }
@@ -251,7 +266,7 @@ class McAffenViewModel(
                 .onSuccess { _boardPlayers.value = it }
                 .onFailure {
                     _boardPlayers.value = emptyList()
-                    _error.value = "Rangliste „$sort“ konnte nicht geladen werden."
+                    _error.value = strings.format("update.notice.boardLoadFailed", sort)
                 }
             _boardLoading.value = false
         }
@@ -274,7 +289,7 @@ class McAffenViewModel(
             val release = runCatching { UpdateChecker.fetchLatest() }.getOrNull() ?: return@launch
             if (!UpdateConfig.isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)) {
                 UpdateNotifier.clear(context)
-                _updateNotice.value = "Du hast bereits die neueste Version (${BuildConfig.VERSION_NAME})."
+                _updateNotice.value = strings.format("update.notice.upToDate", BuildConfig.VERSION_NAME)
                 return@launch
             }
             _update.value = release
@@ -300,7 +315,7 @@ class McAffenViewModel(
             _loading.value = true
             _error.value = null
             runCatching { repository.refresh() }
-                .onFailure { _error.value = "Daten konnten nicht geladen werden. Cache wird angezeigt." }
+                .onFailure { _error.value = translated("update.notice.refreshFailed") }
             _loading.value = false
             runCatching { repository.refreshLegal() }
         }
@@ -334,9 +349,12 @@ class McAffenViewModel(
             }.onFailure { error ->
                 if (force) {
                     _updateNotice.value = if (error is IOException) {
-                        "Keine Internetverbindung – Update-Prüfung nicht möglich."
+                        translated("update.notice.offline")
                     } else {
-                        "Update-Prüfung fehlgeschlagen: ${error.message ?: error::class.simpleName}"
+                        strings.format(
+                            "update.notice.checkFailed",
+                            error.message ?: error::class.simpleName.orEmpty(),
+                        )
                     }
                 }
             }
@@ -350,14 +368,14 @@ class McAffenViewModel(
      */
     fun checkAndInstall(context: Context) {
         viewModelScope.launch {
-            _updateNotice.value = "Suche nach Updates …"
+            _updateNotice.value = translated("update.notice.searching")
             val release = runCatching { UpdateChecker.fetchLatest() }.getOrNull()
             if (release == null) {
-                _updateNotice.value = "Update-Prüfung fehlgeschlagen – bitte Internetverbindung prüfen."
+                _updateNotice.value = translated("update.notice.failed")
                 return@launch
             }
             if (!UpdateConfig.isNewerVersion(release.tagName, BuildConfig.VERSION_NAME)) {
-                _updateNotice.value = "Du hast bereits die neueste Version (${BuildConfig.VERSION_NAME})."
+                _updateNotice.value = strings.format("update.notice.upToDate", BuildConfig.VERSION_NAME)
                 return@launch
             }
             _updateNotice.value = null
@@ -402,8 +420,8 @@ class McAffenViewModel(
                 onFailure = { error ->
                     _download.value = DownloadState.Failed(
                         when (error) {
-                            is IOException -> "Keine Internetverbindung – Download wurde abgebrochen."
-                            else -> error.message ?: "Download fehlgeschlagen"
+                            is IOException -> translated("update.notice.downloadOffline")
+                            else -> error.message ?: translated("update.notice.downloadFailed")
                         },
                     )
                 },
@@ -423,7 +441,19 @@ class McAffenViewModel(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
+    // Sprache: Einstellung auflösen und die Texte für alle Kinder bereitstellen.
+    val languageSetting by settings.language.collectAsStateWithLifecycle()
+    val language = AppLanguage.resolve(languageSetting)
+    CompositionLocalProvider(LocalStrings provides Strings.of(language)) {
+        McAffenContent(repository, settings)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun McAffenContent(repository: McAffenRepository, settings: SettingsStore) {
     val context = LocalContext.current
+    val strings = LocalStrings.current
     val vm: McAffenViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -462,6 +492,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     val colorName by settings.color.collectAsStateWithLifecycle()
     val hapticsEnabled by settings.hapticsEnabled.collectAsStateWithLifecycle()
     val compactMode by settings.compactMode.collectAsStateWithLifecycle()
+    val languageSetting by settings.language.collectAsStateWithLifecycle()
 
     // Aus der Update-Benachrichtigung geöffnet? Dann direkt den Dialog zeigen
     // (und bei „Jetzt installieren“ sofort den Download starten).
@@ -629,7 +660,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                             shape = RoundedCornerShape(18.dp),
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Einstellungen") },
+                                text = { Text(strings["menu.settings"]) },
                                 leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
                                 onClick = {
                                     isMenuExpanded = false
@@ -637,7 +668,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Über die App") },
+                                text = { Text(strings["menu.about"]) },
                                 leadingIcon = { Icon(Icons.Default.Info, contentDescription = null) },
                                 onClick = {
                                     isMenuExpanded = false
@@ -650,7 +681,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            selectedTab.title,
+                            strings[selectedTab.titleKey],
                             fontWeight = FontWeight.Black,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -658,13 +689,17 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         // Zweite Zeile: live die wichtigste Zahl des Tabs.
                         val subtitle = when (selectedTab) {
                             Tab.LEADERBOARD ->
-                                if (players.isEmpty()) "wird geladen …" else "${players.size} Spieler"
+                                if (players.isEmpty()) strings["subtitle.loading"]
+                                else formatString(strings, "subtitle.players", players.size)
                             Tab.NEWS ->
-                                if (news.isEmpty()) "Beiträge laden …" else "${news.size} Beiträge"
+                                if (news.isEmpty()) strings["subtitle.postsLoading"]
+                                else formatString(strings, "subtitle.posts", news.size)
                             Tab.VOTES ->
-                                if (voteSites.isEmpty()) "Seiten laden …" else "${voteSites.size} Vote-Seiten"
-                            Tab.STATUS -> status?.let { "${it.onlinePlayers} online" } ?: "live"
-                            Tab.SETTINGS -> "Version ${BuildConfig.VERSION_NAME}"
+                                if (voteSites.isEmpty()) strings["subtitle.sitesLoading"]
+                                else formatString(strings, "subtitle.sites", voteSites.size)
+                            Tab.STATUS -> status?.let { formatString(strings, "subtitle.online", it.onlinePlayers) }
+                                ?: strings["subtitle.live"]
+                            Tab.SETTINGS -> formatString(strings, "subtitle.version", BuildConfig.VERSION_NAME)
                         }
                         AnimatedContent(
                             targetState = subtitle,
@@ -697,7 +732,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                             if (!skin.isNullOrBlank()) {
                                 AsyncImage(
                                     model = skin,
-                                    contentDescription = "Spielerprofil",
+                                    contentDescription = strings["cd.playerProfile"],
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier
                                         .size(34.dp)
@@ -706,7 +741,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                             } else {
                                 Icon(
                                     Icons.Filled.Person,
-                                    contentDescription = "Spielerprofil",
+                                    contentDescription = strings["cd.playerProfile"],
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -725,7 +760,7 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                     IconButton(onClick = vm::refresh) {
                         Icon(
                             Icons.Default.Refresh,
-                            contentDescription = "Aktualisieren",
+                            contentDescription = strings["cd.refresh"],
                             modifier = Modifier.rotate(rotation),
                         )
                     }
@@ -782,13 +817,13 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                                         if (selected) Icons.Filled.Speed else Icons.Outlined.Speed
                                     Tab.SETTINGS -> Icons.Default.Settings
                                 },
-                                    contentDescription = tab.title,
+                                    contentDescription = strings[tab.titleKey],
                                 )
                             }
                         },
                         label = {
                             Text(
-                                tab.title,
+                                strings[tab.titleKey],
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                             )
                         },
@@ -912,6 +947,8 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         onOpenAbout = { showAbout = true },
                         voteBrowser = voteBrowser,
                         onVoteBrowserChange = settings::setVoteBrowser,
+                        language = languageSetting,
+                        onLanguageChange = settings::setLanguage,
                     )
                 }
             }

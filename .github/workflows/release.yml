@@ -15,12 +15,12 @@ jobs:
       group: android-release-main
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-java@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@v4
       # Version zählt einfach hoch: v1.0.NNN → NNN = höchste vorhandene Nummer + 1.
       # Dadurch steigt der versionCode bei jedem Release um 1 und Android nimmt
       # jedes Update über die installierte App an.
@@ -145,7 +145,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v2
         env:
           # Ohne das schreibt Python/Runner Umlaute als "Ã¤" in die Notes.
           LANG: C.UTF-8

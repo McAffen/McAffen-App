@@ -2,6 +2,17 @@ name: iOS Build (shared)
 
 # Baut und testet den gemeinsamen Kotlin-Kern für iOS auf einem GitHub-macOS-Runner.
 # Dafür ist kein eigener Mac und kein iPhone nötig: Tests laufen im iOS-Simulator.
+#
+# Warum dieser Lauf schnell ist:
+#  - Gradle-Cache aus dem vorherigen Lauf (setup-gradle) statt alles neu laden
+#  - ~/.konan im Cache: der Kotlin/Native-Compiler wird nicht jedes Mal geladen
+#  - Testbericht erscheint direkt im Lauf (dorny/test-reporter)
+#  - concurrency bricht veraltete Läufe sofort ab
+#
+# Wartezeit auf den Runner: macOS-Runner sind knapper als Linux-Runner. Steht der
+# Job auf "queued", hat GitHub noch keine Maschine zugewiesen – ein zweiter Lauf
+# hilft nicht, nur Abbrechen und "Re-run all jobs". timeout-minutes begrenzt die
+# Laufzeit, nicht die Wartezeit.
 
 on:
   pull_request:
@@ -10,6 +21,7 @@ on:
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'gradle.properties'
+      - 'gradle/**'
       - 'ios/**'
       - '.github/workflows/ios.yml'
   push:
@@ -24,11 +36,16 @@ concurrency:
   group: ios-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   shared-ios:
     name: Shared für iOS bauen und testen
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -36,8 +53,26 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      # Kotlin/Native-Toolchain (~/.konan) mitcachen – das ist der größte Einzelposten.
+      - name: Kotlin/Native-Compiler cachen
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle.properties') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
       - name: Tests im iOS-Simulator
-        run: ./gradlew :shared:iosSimulatorArm64Test --build-cache
+        run: ./gradlew :shared:iosSimulatorArm64Test --build-cache --parallel
+      - name: Testbericht im Lauf anzeigen
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: iOS-Simulator-Tests
+          path: shared/build/test-results/iosSimulatorArm64Test/*.xml
+          reporter: java-junit
+          fail-on-error: false
       - name: XCFramework bauen
         run: ./gradlew :shared:assembleSharedXCFramework --build-cache
       - name: XCFramework hochladen
@@ -46,6 +81,7 @@ jobs:
           name: Shared.xcframework
           path: shared/build/XCFrameworks/**/Shared.xcframework
           if-no-files-found: error
+          retention-days: 14
       - name: Testbericht hochladen
         if: always()
         uses: actions/upload-artifact@v4
@@ -53,3 +89,4 @@ jobs:
           name: ios-test-report
           path: shared/build/reports/tests
           if-no-files-found: ignore
+          retention-days: 7

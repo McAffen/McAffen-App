@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.mcaffen.app.data.McAffenRepository
 import de.mcaffen.app.model.PlayerStat
+import de.mcaffen.app.ui.LocalStrings
 import de.mcaffen.app.ui.McAffenBrand
 import de.mcaffen.app.ui.components.AnimatedBackdrop
 import de.mcaffen.app.ui.components.GlowHalo
@@ -149,20 +150,20 @@ internal fun LeaderboardScreen(
                     ) {
                         EmptyState(
                             emoji = "🏆",
-                            title = "Rangliste ist leer",
-                            text = boardStatus?.error?.let { "Fehler: $it" }
-                                ?: boardStatus?.let { "Antwort kam an (${it.entries} Einträge)." }
-                                ?: "Noch keine Anfrage gelaufen – tippe auf „Jetzt testen“.",
+                            title = strings["leaderboard.empty.title"],
+                            text = boardStatus?.error?.let { formatString(strings, "common.error", it) }
+                                ?: boardStatus?.let { formatString(strings, "leaderboard.empty.answered", it.entries) }
+                                ?: strings["leaderboard.empty.notAsked"],
                         )
                         Button(
                             onClick = onTestLeaderboard,
                             shape = RoundedCornerShape(14.dp),
                         ) {
-                            Text("Jetzt testen")
+                            Text(strings["leaderboard.test"])
                         }
                         boardStatus?.let { status ->
                             Text(
-                                "Letzte Prüfung: ${lastCheckText(status.at)}",
+                                formatString(strings, "leaderboard.lastCheck", lastCheckText(status.at, strings)),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -223,9 +224,9 @@ internal fun LeaderboardScreen(
                                 Reveal(visible = animationsEnabled) { Podium(players.take(PODIUM_SIZE)) }
                             }
                             item("listHeader") {
-                                SectionTitle("Platzierungen · Wellen (Nacht der Untoten)") {
+                                SectionTitle(strings["leaderboard.placements"]) {
                                     PillChip(
-                                        text = "${formatScore(players.size)} Spieler",
+                                        text = formatString(strings, "subtitle.players", players.size),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         containerAlpha = 0.10f,
                                     )
@@ -236,8 +237,8 @@ internal fun LeaderboardScreen(
                             item("empty") {
                                 EmptyState(
                                     emoji = "🔍",
-                                    title = "Niemanden gefunden",
-                                    text = "Kein Spieler passt zu „$query“. Prüfe die Schreibweise.",
+                                    title = strings["leaderboard.notFound"],
+                                    text = formatString(strings, "leaderboard.notFound.text", query),
                                     modifier = Modifier.padding(top = 24.dp),
                                 )
                             }
@@ -270,7 +271,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Spieler suchen") },
+        placeholder = { Text(LocalStrings.current["leaderboard.search"]) },
         leadingIcon = {
             Icon(
                 Icons.Default.Search,
@@ -282,7 +283,7 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
             if (query.isNotEmpty()) {
                 Icon(
                     Icons.Default.Close,
-                    contentDescription = "Suche leeren",
+                    contentDescription = LocalStrings.current["cd.searchClear"],
                     modifier = Modifier
                         .clip(CircleShape)
                         .clickable { onQueryChange("") },
@@ -329,21 +330,26 @@ private fun LeaderboardHero(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "Rangliste",
+                    LocalStrings.current["tab.leaderboard"],
                     style = MaterialTheme.typography.labelLarge,
                     color = Color.White.copy(alpha = 0.9f),
                 )
             }
             Text(
-                "Platz ${formatScore(1)} wartet",
+                formatString("leaderboard.place", formatScore(1)),
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
             )
             Text(
                 if (onlineTop != null) {
-                    "$onlineTop führt mit ${formatScore(topScore)} Punkten – ${formatScore(animatedCount)} Spieler im Rennen."
+                    formatString(
+                        "leaderboard.leads",
+                        onlineTop,
+                        formatScore(topScore, LocalStrings.current.language),
+                        formatScore(animatedCount, LocalStrings.current.language),
+                    )
                 } else {
-                    "Noch keine Platzierungen verfügbar."
+                    strings["leaderboard.noPlacements"]
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.85f),
@@ -426,14 +432,15 @@ private fun MyProfileCard(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                "· ${formatScore(myStat.score)} Punkte",
+                                "· ${formatScore(myStat.score, LocalStrings.current.language)} "
+                                    + LocalStrings.current["common.points"],
                                 style = MaterialTheme.typography.bodySmall,
                             )
                             TrendChip(myStat)
                         }
                     } else {
                         Text(
-                            "Noch nicht in der Rangliste – ein Vote pro Tag bringt dich rein.",
+                            LocalStrings.current["leaderboard.notInList"],
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -448,11 +455,12 @@ private fun MyProfileCard(
                     animate = true,
                 )
                 Text(
+                    val strings = LocalStrings.current
                     when {
-                        rank == 1 -> "Du führst die Rangliste an 👑"
+                        rank == 1 -> strings["leaderboard.youLead"]
                         leaderScore > myStat.score ->
-                            "Noch ${formatScore(leaderScore - myStat.score)} Punkte bis Platz 1"
-                        else -> "Gleichauf mit der Spitze"
+                            formatString(strings, "leaderboard.pointsToFirst", formatScore(leaderScore - myStat.score))
+                        else -> strings["leaderboard.tied"]
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -460,10 +468,12 @@ private fun MyProfileCard(
             }
             if (isRecord || canJump) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (isRecord) PillChip(text = "Bester Rang", color = McAffenBrand.colors.gold)
+                    if (isRecord) {
+                        PillChip(text = LocalStrings.current["leaderboard.bestRank"], color = McAffenBrand.colors.gold)
+                    }
                     if (canJump) {
                         PillChip(
-                            text = "In der Liste zeigen →",
+                            text = LocalStrings.current["leaderboard.showInList"],
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -663,7 +673,7 @@ private fun PlayerRow(
                             overflow = TextOverflow.Ellipsis,
                         )
                         if (isMe) {
-                            PillChip(text = "DU", color = MaterialTheme.colorScheme.primary)
+                            PillChip(text = LocalStrings.current["leaderboard.you"], color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     TrendChip(player)
@@ -759,14 +769,22 @@ internal fun EmptyState(
     }
 }
 
-/** Werte der Rangliste – entspricht den Sortierungen von `/ndu/top`. */
-internal data class BoardSort(val key: String, val label: String, val unit: String, val emoji: String)
+/**
+ * Werte der Rangliste – entspricht den Sortierungen von `/ndu/top`.
+ * [labelKey] wird über [Strings] in die gewählte Sprache übersetzt.
+ */
+internal data class BoardSort(
+    val key: String,
+    val labelKey: String,
+    val unitKey: String,
+    val emoji: String,
+)
 
 internal val BOARD_SORTS = listOf(
-    BoardSort("waves", "Wellen", "Wellen", "🌊"),
-    BoardSort("kills", "Kills", "Kills", "⚔️"),
-    BoardSort("games", "Spiele", "Spiele", "🎮"),
-    BoardSort("coins", "Coins", "Coins", "🪙"),
+    BoardSort("waves", "common.waves", "common.waves", "🌊"),
+    BoardSort("kills", "common.kills", "common.kills", "⚔️"),
+    BoardSort("games", "common.games", "common.games", "🎮"),
+    BoardSort("coins", "common.coins", "common.coins", "🪙"),
 )
 
 /** Segment-Umschalter für die Ranglisten-Werte mit gleitendem Hintergrund. */
@@ -808,7 +826,7 @@ private fun BoardSortRow(selected: String, onSelect: (String) -> Unit) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(sort.emoji, fontSize = 13.sp)
                     Text(
-                        sort.label,
+                        LocalStrings.current[sort.labelKey],
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                         color = textColor,

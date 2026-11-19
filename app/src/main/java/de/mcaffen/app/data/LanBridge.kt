@@ -1,5 +1,8 @@
 package de.mcaffen.app.data
 
+import de.mcaffen.app.ui.AppLanguage
+import de.mcaffen.app.ui.Strings
+
 import android.content.Context
 import android.net.wifi.WifiManager
 import kotlinx.coroutines.CoroutineScope
@@ -202,29 +205,29 @@ object LanBridge {
         }.getOrDefault(false)
     }
 
-    /** Kurze Einrichtungsschritte für die lokale Bedrock-LAN-Brücke. */
-    fun steps(localIp: String?): List<LanStep> {
-        val address = localIp ?: "IP dieses Geräts"
+    /**
+     * Kurze Einrichtungsschritte für die lokale Bedrock-LAN-Brücke in der
+     * gewählten Sprache (Standard: Deutsch).
+     */
+    fun steps(localIp: String?, language: AppLanguage = AppLanguage.GERMAN): List<LanStep> {
+        val strings = Strings.of(language)
+        val address = localIp ?: if (language == AppLanguage.ENGLISH) "this device's IP" else "IP dieses Geräts"
         return listOf(
             LanStep(
-                title = "Gerät im selben WLAN",
-                detail = "Das Handy muss im selben WLAN wie " +
-                    "die Konsole sein. Mobilfunk funktioniert nicht.",
+                title = strings["lan.step1.title"],
+                detail = strings["lan.step1.detail"],
             ),
             LanStep(
-                title = "LAN-Welt starten",
-                detail = "In der App auf „LAN-Welt starten“ drücken. Die App öffnet " +
-                    "Port $PORT im lokalen WLAN und leitet Bedrock-Pakete automatisch an $HOST:$PORT weiter.",
+                title = strings["lan.step2.title"],
+                detail = strings.format("lan.step2.detail", PORT, "$HOST:$PORT"),
             ),
             LanStep(
-                title = "LAN-Ankündigung senden",
-                detail = "Die App sendet eine Bedrock-LAN-Ankündigung. Die Konsole muss im " +
-                    "gleichen WLAN sein; Mobilfunk und Gast-WLAN mit Client-Isolation funktionieren nicht.",
+                title = strings["lan.step3.title"],
+                detail = strings["lan.step3.detail"],
             ),
             LanStep(
-                title = "In der Konsole suchen",
-                detail = "Im Spiel unter „Freunde“ bzw. „LAN-Welten“ nach Welten suchen. " +
-                    "Die Welt erscheint als LAN-Welt und verbindet sich über $address:$PORT.",
+                title = strings["lan.step4.title"],
+                detail = strings.format("lan.step4.detail", "$address:$PORT"),
             ),
         )
     }

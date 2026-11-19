@@ -52,6 +52,35 @@ object ThemeOptions {
         COLOR_INDIGO to "Indigo",
     )
 
+    /** Hell/Dunkel-Auswahl mit übersetzten Beschriftungen (Einstellungen). */
+    @Composable
+    fun darkModes(): List<Pair<String, String>> {
+        val english = LocalStrings.current.language == AppLanguage.ENGLISH
+        return listOf(
+            DARK_SYSTEM to "System",
+            DARK_LIGHT to if (english) "Light" else "Hell",
+            DARK_DARK to if (english) "Dark" else "Dunkel",
+        )
+    }
+
+    /** Farbwelten mit übersetzten Namen; „McAffen“ bleibt Markenname. */
+    @Composable
+    fun colors(): List<Pair<String, String>> {
+        val english = LocalStrings.current.language == AppLanguage.ENGLISH
+        return listOf(
+            COLOR_GREEN to if (english) "McAffen Green" else "McAffen Grün",
+            COLOR_BLUE to if (english) "Blue" else "Blau",
+            COLOR_PURPLE to if (english) "Purple" else "Violett",
+            COLOR_ORANGE to "Orange",
+            COLOR_RED to if (english) "Red" else "Rot",
+            COLOR_TEAL to if (english) "Teal" else "Türkis",
+            COLOR_PINK to "Pink",
+            COLOR_CYAN to "Cyan",
+            COLOR_AMBER to if (english) "Amber" else "Bernstein",
+            COLOR_INDIGO to "Indigo",
+        )
+    }
+
     /** Akzentfarbe einer Farbwelt – für die Vorschau-Punkte in den Einstellungen. */
     fun previewColor(color: String): Color = when (color) {
         COLOR_BLUE -> Color(0xFF2F6FB0)
