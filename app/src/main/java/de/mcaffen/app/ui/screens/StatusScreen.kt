@@ -8,6 +8,9 @@ import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -92,6 +95,10 @@ internal fun StatusScreen(
     animationsEnabled: Boolean,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Spielmodi (aus /api/spielmodi) – werden hier mit angezeigt. */
+    modes: List<de.mcaffen.app.network.GameModeDto> = emptyList(),
+    modesLoading: Boolean = false,
+    onLoadModes: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var todayPeak by remember { mutableIntStateOf(settings.peakToday()) }
@@ -105,6 +112,8 @@ internal fun StatusScreen(
     )
     val onlineServers = status?.servers?.count { it.online } ?: 0
     val haptic = LocalHapticFeedback.current
+    // Modi einmalig nachladen, wenn der Status geöffnet wird.
+    LaunchedEffect(Unit) { if (modes.isEmpty()) onLoadModes() }
 
     Box(modifier.fillMaxSize()) {
         AnimatedBackdrop(enabled = animationsEnabled)
@@ -165,6 +174,35 @@ internal fun StatusScreen(
                                 animationsEnabled = animationsEnabled,
                                 onStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
                             )
+                        }
+                    }
+                    // Spielmodi gehören hierhin: sie zeigen, wo man startet.
+                    if (modes.isNotEmpty() || modesLoading) {
+                        item("modesHeader") {
+                            SectionTitle("Spielmodi") {
+                                PillChip(
+                                    text = if (modesLoading) "…" else "${modes.size}",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    containerAlpha = 0.10f,
+                                )
+                            }
+                        }
+                        if (modesLoading && modes.isEmpty()) {
+                            item("modesLoading") {
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+                                }
+                            }
+                        }
+                        items(modes, key = { it.name }) { mode ->
+                            Reveal(visible = animationsEnabled, fromScale = 0.97f) {
+                                ModeRow(mode)
+                            }
                         }
                     }
                     item("community") {
@@ -621,5 +659,57 @@ private fun AddressPill(label: String, value: String, modifier: Modifier = Modif
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
         )
+    }
+}
+
+/** Ein Spielmodus als kompakte Zeile im Status. */
+@Composable
+private fun ModeRow(mode: de.mcaffen.app.network.GameModeDto) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        mode.image?.let { image ->
+            AsyncImage(
+                model = image,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+            )
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                mode.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            (mode.subtitle ?: mode.description)?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                )
+            }
+        }
+        mode.statusLabel?.let { label ->
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+            )
+        }
     }
 }

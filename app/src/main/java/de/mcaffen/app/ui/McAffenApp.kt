@@ -26,9 +26,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -56,6 +58,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -72,7 +76,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import coil.compose.AsyncImage
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -112,13 +118,14 @@ import kotlinx.coroutines.launch
 
 private enum class Tab(val title: String) {
     LEADERBOARD("Rangliste"),
-    PLAYER("Spieler"),
     NEWS("News"),
-    MODES("Modi"),
     VOTES("Voten"),
     STATUS("Status"),
     SETTINGS("Einstellungen"),
 }
+
+/** Spielerprofil als eigenes Blatt, erreichbar über den Kopf oben rechts. */
+private enum class PlayerSheet { SEARCH, SETTINGS }
 
 class McAffenViewModel(
     private val repository: McAffenRepository,
@@ -470,6 +477,8 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
     }
 
     var selectedTab by rememberSaveable { mutableStateOf(Tab.LEADERBOARD) }
+    // Spielerprofil liegt oben rechts als Kopf-Icon, nicht in der Leiste.
+    var showPlayer by rememberSaveable { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
     var legalKey by remember { mutableStateOf<String?>(null) }
@@ -524,11 +533,28 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
         }
     }
 
+    // Spielerprofil als Blatt über der App (kein eigener Tab mehr).
+    if (showPlayer) {
+        ModalBottomSheet(
+            onDismissRequest = { showPlayer = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            Box(Modifier.heightIn(min = 420.dp)) {
+                PlayerScreen(
+                    profile = profile,
+                    loading = profileLoading,
+                    error = profileError,
+                    initialName = myName,
+                    onSearch = vm::loadPlayer,
+                )
+            }
+        }
+    }
+
     // Daten der neuen Tabs erst laden, wenn der Tab geöffnet wird.
     LaunchedEffect(selectedTab) {
         when (selectedTab) {
             Tab.NEWS -> vm.loadNews()
-            Tab.MODES -> vm.loadModes()
             else -> {}
         }
     }
@@ -633,13 +659,8 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         val subtitle = when (selectedTab) {
                             Tab.LEADERBOARD ->
                                 if (players.isEmpty()) "wird geladen …" else "${players.size} Spieler"
-                            Tab.PLAYER ->
-                                profile?.let { "${it.name} · Welle ${it.nachtDerUntoten?.bestWave ?: 0}" }
-                                    ?: "Name eingeben"
                             Tab.NEWS ->
                                 if (news.isEmpty()) "Beiträge laden …" else "${news.size} Beiträge"
-                            Tab.MODES ->
-                                if (modes.isEmpty()) "Modi laden …" else "${modes.size} Spielmodi"
                             Tab.VOTES ->
                                 if (voteSites.isEmpty()) "Seiten laden …" else "${voteSites.size} Vote-Seiten"
                             Tab.STATUS -> status?.let { "${it.onlinePlayers} online" } ?: "live"
@@ -663,6 +684,35 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                     }
                 },
                 actions = {
+                    // Spielerprofil: Kopf-Icon statt eigenem Tab.
+                    IconButton(onClick = { showPlayer = true }) {
+                        Box(
+                            Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            val skin = profile?.skin
+                            if (!skin.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = skin,
+                                    contentDescription = "Spielerprofil",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape),
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Filled.Person,
+                                    contentDescription = "Spielerprofil",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
                     val rotation by animateFloatAsState(
                         targetValue = if (loading) 360f else 0f,
                         animationSpec = if (loading) {
@@ -724,12 +774,8 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                                 when (tab) {
                                     Tab.LEADERBOARD ->
                                         if (selected) Icons.Filled.EmojiEvents else Icons.Outlined.EmojiEvents
-                                    Tab.PLAYER ->
-                                        if (selected) Icons.Filled.Person else Icons.Outlined.Person
                                     Tab.NEWS ->
                                         if (selected) Icons.Filled.Newspaper else Icons.Outlined.Newspaper
-                                    Tab.MODES ->
-                                        if (selected) Icons.Filled.SportsEsports else Icons.Outlined.SportsEsports
                                     Tab.VOTES ->
                                         if (selected) Icons.Filled.HowToVote else Icons.Outlined.HowToVote
                                     Tab.STATUS ->
@@ -798,13 +844,6 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         boardStatus = boardResult,
                         onTestLeaderboard = vm::testLeaderboard,
                     )
-                    Tab.PLAYER -> PlayerScreen(
-                        profile = profile,
-                        loading = profileLoading,
-                        error = profileError,
-                        initialName = myName,
-                        onSearch = vm::loadPlayer,
-                    )
                     Tab.NEWS -> NewsScreen(
                         posts = news,
                         loading = newsLoading,
@@ -821,7 +860,6 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         },
                         onReload = { vm.loadNews(force = true) },
                     )
-                    Tab.MODES -> ModesScreen(modes = modes, loading = modesLoading)
                     Tab.VOTES -> VoteScreen(
                         players = players,
                         voteSites = voteSites,
@@ -840,6 +878,9 @@ fun McAffenApp(repository: McAffenRepository, settings: SettingsStore) {
                         loading = loading,
                         animationsEnabled = animationsEnabled,
                         onRefresh = vm::refresh,
+                        modes = modes,
+                        modesLoading = modesLoading,
+                        onLoadModes = { vm.loadModes() },
                     )
                     Tab.SETTINGS -> SettingsScreen(
                         version = BuildConfig.VERSION_NAME,
