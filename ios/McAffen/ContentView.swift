@@ -58,7 +58,7 @@ struct LeaderboardView: View {
             rows = try await McAffenAPI.leaderboard()
             error = nil
         } catch {
-            error = "Die Rangliste konnte nicht geladen werden."
+            self.error = "Die Rangliste konnte nicht geladen werden."
         }
     }
 }
@@ -150,7 +150,7 @@ struct StatusView: View {
             status = try await McAffenAPI.status()
             error = nil
         } catch {
-            error = "Der Serverstatus konnte nicht geladen werden."
+            self.error = "Der Serverstatus konnte nicht geladen werden."
         }
     }
 }
