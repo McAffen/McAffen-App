@@ -260,9 +260,9 @@ internal fun SettingsScreen(
                     SettingsSwitchRow(
                         title = strings["settings.haptics"],
                         subtitle = strings["settings.haptics.hint"],
+                        icon = Icons.Default.Vibration,
                         checked = hapticsEnabled,
                         onCheckedChange = onHapticsChange,
-                        icon = Icons.Default.Vibration,
                     )
                     SettingsSwitchRow(
                         title = strings["settings.compact"],
@@ -521,9 +521,9 @@ private fun SettingsCard(
 private fun SettingsSwitchRow(
     title: String,
     subtitle: String,
+    icon: ImageVector? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    icon: ImageVector? = null,
 ) {
     Row(
         Modifier

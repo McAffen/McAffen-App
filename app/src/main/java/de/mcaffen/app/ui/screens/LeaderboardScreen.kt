@@ -317,8 +317,8 @@ private fun LeaderboardHero(
     Box(Modifier.fillMaxWidth()) {
         SoftCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = McAffenBrand.colors.brandGradient.map { it.copy(alpha = 0.92f) },
             shape = RoundedCornerShape(26.dp),
+            colors = McAffenBrand.colors.brandGradient.map { it.copy(alpha = 0.92f) },
             contentPadding = 20.dp,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -384,11 +384,11 @@ private fun MyProfileCard(
     PressableCard(onClick = { if (canJump) onJump() }) {
         SoftCard(
             modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(26.dp),
             colors = listOf(
                 MaterialTheme.colorScheme.primaryContainer,
                 MaterialTheme.colorScheme.surfaceContainerHigh,
             ),
-            shape = RoundedCornerShape(26.dp),
             contentPadding = 18.dp,
         ) {
             Row(

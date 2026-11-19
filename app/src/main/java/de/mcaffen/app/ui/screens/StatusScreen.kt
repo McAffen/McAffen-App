@@ -95,11 +95,11 @@ internal fun StatusScreen(
     loading: Boolean,
     animationsEnabled: Boolean,
     onRefresh: () -> Unit,
-    modifier: Modifier = Modifier,
     /** Spielmodi (aus /api/spielmodi) – werden hier mit angezeigt. */
     modes: List<de.mcaffen.app.network.GameModeDto> = emptyList(),
     modesLoading: Boolean = false,
     onLoadModes: () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     var todayPeak by remember { mutableIntStateOf(settings.peakToday()) }

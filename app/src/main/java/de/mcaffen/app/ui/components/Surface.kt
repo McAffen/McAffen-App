@@ -176,8 +176,8 @@ fun ShimmerRow(modifier: Modifier = Modifier) {
                     .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.14f)),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ShimmerCard(height = 12.dp, cornerRadius = 6.dp, modifier = Modifier.fillMaxWidth(0.55f))
-                ShimmerCard(height = 8.dp, cornerRadius = 4.dp, modifier = Modifier.fillMaxWidth(0.32f))
+                ShimmerCard(modifier = Modifier.fillMaxWidth(0.55f), height = 12.dp, cornerRadius = 6.dp)
+                ShimmerCard(modifier = Modifier.fillMaxWidth(0.32f), height = 8.dp, cornerRadius = 4.dp)
             }
         }
     }

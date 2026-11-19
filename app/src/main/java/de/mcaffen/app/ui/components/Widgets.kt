@@ -154,9 +154,9 @@ fun ProgressRing(
 fun PillChip(
     text: String,
     modifier: Modifier = Modifier,
-    icon: (@Composable () -> Unit)? = null,
     color: Color = MaterialTheme.colorScheme.primary,
     containerAlpha: Float = 0.14f,
+    icon: (@Composable () -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier,
