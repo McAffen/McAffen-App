@@ -29,11 +29,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.Lan
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -548,6 +548,12 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
     val localIp = remember(netTick) { LanBridge.localAddress(context) }
     val onWifi = remember(netTick) { LanBridge.isOnWifi(context) }
     var expanded by remember { mutableStateOf(false) }
+    var running by remember { mutableStateOf(LanBridge.isRunning()) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose { LanBridge.stop() }
+    }
 
     SoftCard(
         modifier = Modifier.fillMaxWidth(),
@@ -582,11 +588,23 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                 modifier = Modifier.weight(1f),
             )
         }
-        // Klarer Start-Knopf: baut die LAN-Welt-Anleitung auf bzw. klappt sie zu.
+        // Startet oder beendet die lokale UDP-Brücke.
         Button(
             onClick = {
-                expanded = !expanded
-                if (expanded) onStarted()
+                if (running) {
+                    LanBridge.stop()
+                    running = false
+                } else {
+                    LanBridge.start(context).onSuccess {
+                        running = true
+                        expanded = true
+                        error = null
+                        onStarted()
+                    }.onFailure {
+                        running = false
+                        error = "LAN-Welt konnte nicht gestartet werden: ${it.message ?: "Port $LanBridge.PORT ist belegt."}"
+                    }
+                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -594,13 +612,20 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
             shape = RoundedCornerShape(14.dp),
         ) {
             Icon(
-                if (expanded) Icons.Default.ExpandLess else Icons.Default.PlayArrow,
+                if (running) Icons.Default.Stop else Icons.Default.PlayArrow,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
             )
             Text(
-                if (expanded) "  Anleitung ausblenden" else "  LAN-Welt starten",
+                if (running) "  LAN-Welt stoppen" else "  LAN-Welt starten",
                 fontWeight = FontWeight.Bold,
+            )
+        }
+        error?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
         AnimatedVisibility(visible = expanded) {
@@ -628,9 +653,8 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                     }
                 }
                 Text(
-                    "Die App kann die Weiterleitung nicht selbst übernehmen – Android erlaubt " +
-                        "keiner normalen App offenen Port unter 1024 und keine LAN-Ankündigung. " +
-                        "Handy und PC verbinden sich direkt mit der Adresse oben.",
+                    "Die App bleibt geöffnet, solange die LAN-Welt aktiv ist. " +
+                        "Handy und Konsole müssen im selben WLAN sein.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
