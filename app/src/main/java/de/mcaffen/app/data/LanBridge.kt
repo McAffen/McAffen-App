@@ -47,7 +47,12 @@ object LanBridge {
                 it.acquire()
                 multicastLock = it
             }
-            val localSocket = DatagramSocket(PORT).apply { soTimeout = 250 }
+            val localSocket = DatagramSocket(null).apply {
+                reuseAddress = true
+                broadcast = true
+                soTimeout = 250
+                bind(InetSocketAddress(InetAddress.getByName("0.0.0.0"), PORT))
+            }
             socket = localSocket
             proxyJob = scope.launch {
                 runProxy(localSocket)
@@ -89,7 +94,7 @@ object LanBridge {
                 } else if (isUnconnectedPing(data)) {
                     val target = InetSocketAddress(packet.address, packet.port)
                     clientAddress.set(target)
-                    sendLanPong(localSocket, target)
+                    sendLanPong(localSocket, target, data)
                 } else {
                     clientAddress.set(InetSocketAddress(packet.address, packet.port))
                     localSocket.send(DatagramPacket(data, data.size, upstream, PORT))
@@ -103,16 +108,22 @@ object LanBridge {
     private fun isUnconnectedPing(data: ByteArray): Boolean =
         data.size >= 1 + 8 + RAKNET_MAGIC_SIZE && data[0].toInt() and 0xff == 0x01
 
-    private fun sendLanPong(socket: DatagramSocket, target: InetSocketAddress) {
+    private fun sendLanPong(
+        socket: DatagramSocket,
+        target: InetSocketAddress,
+        ping: ByteArray,
+    ) {
         val name = "MCPE;McAffen;686;1.21.0;0;100;0;McAffen;Survival;1;19132;19133;"
             .toByteArray(Charsets.UTF_8)
-        val pong = ByteArray(1 + 8 + 8 + RAKNET_MAGIC_SIZE + 2 + name.size)
+        val pong = ByteArray(33 + 2 + name.size)
         pong[0] = 0x1c
-        java.nio.ByteBuffer.wrap(pong).apply {
-            position(1 + 8 + 8 + RAKNET_MAGIC_SIZE)
-            putShort(name.size.toShort())
-            put(name)
+        if (ping.size >= 33) {
+            ping.copyInto(pong, destinationOffset = 1, startIndex = 1, endIndex = 33)
         }
+        val nameLengthOffset = 33
+        java.nio.ByteBuffer.wrap(pong, nameLengthOffset, 2)
+            .putShort(name.size.toShort())
+        name.copyInto(pong, destinationOffset = nameLengthOffset + 2)
         socket.send(DatagramPacket(pong, pong.size, target))
     }
 
@@ -180,8 +191,15 @@ object LanBridge {
             caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
         }.getOrDefault(false)
         if (viaConnectivity) return true
-        // Rückfall: lokale 192.168.x / 10.x-Adresse gilt als WLAN.
-        return localAddress(context) != null
+        // Kein rein privater-IP-Rückschluss: mobile Daten können ebenfalls eine
+        // 10.x-Adresse erhalten. Fallback nur über den tatsächlichen WifiManager.
+        return runCatching {
+            @Suppress("DEPRECATION")
+            val wifi = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            @Suppress("DEPRECATION")
+            wifi?.connectionInfo?.bssid != null
+        }.getOrDefault(false)
     }
 
     /** Kurze Einrichtungsschritte für die lokale Bedrock-LAN-Brücke. */

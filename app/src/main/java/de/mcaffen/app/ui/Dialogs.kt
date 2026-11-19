@@ -28,6 +28,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +71,17 @@ internal fun UpdateDialog(
     onDismiss: () -> Unit,
 ) {
     val state = downloadState
+    val context = LocalContext.current
+    var cellularConfirmed by remember { mutableStateOf(false) }
+    val onCellular = remember {
+        runCatching {
+            val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+            val network = cm?.activeNetwork
+            val caps = network?.let { cm.getNetworkCapabilities(it) }
+            caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) == true &&
+                caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) != true
+        }.getOrDefault(false)
+    }
     val downloading = state is DownloadState.Downloading
     val blocked = state as? DownloadState.Blocked
     val failed = state as? DownloadState.Failed
@@ -186,6 +201,13 @@ internal fun UpdateDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                if (onCellular && state is DownloadState.Idle) {
+                    Text(
+                        "Du nutzt gerade mobile Daten. Der Update-Download kann Datenvolumen verbrauchen.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 when (state) {
                     is DownloadState.Downloading -> {
                         if (state.progress >= 0) {
@@ -244,6 +266,9 @@ internal fun UpdateDialog(
                     !hasApk || (blocked != null && blocked.verification != ApkVerification.Corrupt) ->
                         Button(onClick = onRetry) { Text("Jetzt herunterladen") }
                     !canInstall -> Button(onClick = onEnableInstalls) { Text("Installation erlauben") }
+                    onCellular && !cellularConfirmed -> Button(onClick = { cellularConfirmed = true }) {
+                        Text("Über mobile Daten bestätigen")
+                    }
                     else -> Button(onClick = onInstall) { Text("Jetzt aktualisieren") }
                 }
                 // GitHub nur noch als Notfallweg – der normale Weg ist der

@@ -594,6 +594,8 @@ private fun LanCard(animationsEnabled: Boolean, onStarted: () -> Unit = {}) {
                 if (running) {
                     LanBridge.stop()
                     running = false
+                } else if (!onWifi) {
+                    error = "LAN-Welt starten funktioniert nur mit einer aktiven WLAN-Verbindung."
                 } else {
                     LanBridge.start(context).onSuccess {
                         running = true
