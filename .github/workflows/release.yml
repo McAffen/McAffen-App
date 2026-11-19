@@ -1,28 +1,77 @@
 name: Cross-platform Release
 
 on:
-  # Erst nach dem erfolgreichen iOS-Workflow veröffentlichen. So kann kein
-  # Android-Release entstehen, während der Apple-Build noch läuft oder fehlschlägt.
-  workflow_run:
-    workflows: ["iOS Build (shared)"]
-    types: [completed]
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  ios:
+    name: iOS bauen und testen
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      - name: Kotlin/Native-Compiler cachen
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle.properties') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+      - name: Tests im iOS-Simulator
+        run: ./gradlew :shared:iosSimulatorArm64Test --build-cache --parallel
+      - name: XCFramework bauen
+        run: ./gradlew :shared:assembleSharedXCFramework --build-cache
+      - name: XCFramework hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Shared.xcframework
+          path: shared/build/XCFrameworks/**/Shared.xcframework
+          if-no-files-found: error
+          retention-days: 14
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+      - name: Xcode-Projekt erzeugen
+        working-directory: ios
+        run: xcodegen generate
+      - name: iOS-App für Simulator bauen
+        run: |
+          xcodebuild \
+            -project ios/McAffen.xcodeproj \
+            -scheme McAffen \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Simulator-App hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: McAffen-iOS-Simulator.app
+          path: ios/build/Build/Products/Debug-iphonesimulator/McAffen.app
+          if-no-files-found: error
+          retention-days: 14
+
   release:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
+    needs: ios
     runs-on: ubuntu-latest
     concurrency:
       group: android-release-main
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

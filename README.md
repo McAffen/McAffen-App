@@ -5,7 +5,7 @@ App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
 (Kotlin Multiplatform).
 
 - **Android:** `app/` – Jetpack Compose, Room-Cache, In-App-Update
-- **iOS:** native SwiftUI-App in `ios/`; der macOS-Workflow baut sie für den iOS-Simulator und lädt sie als Artefakt hoch
+- **iOS:** native SwiftUI-App in `ios/`; der gemeinsame Main-Release-Workflow baut sie für den iOS-Simulator und lädt sie als Artefakt hoch
 - **Sprachen:** Deutsch und Englisch, umschaltbar unter Einstellungen → Sprache („System“ folgt dem Gerät). Alle Texte liegen in `app/src/main/java/de/mcaffen/app/ui/Strings.kt`
 - **Gemeinsam:** `shared/` – Modelle, API-Zugriff (Ktor), Vote-Seiten, Update-Logik
 - **iOS veröffentlichen:** siehe [docs/ios-release.md](docs/ios-release.md)
@@ -17,7 +17,7 @@ App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
 - **Datenschutz:** Die App enthält keine Zugangsdaten und protokolliert keine Netzwerk-URLs oder Spielernamen
 - **Offline-Fallback:** Room speichert den letzten erfolgreichen Abruf
 - **Updates:** Beim Start wird das neueste GitHub-Release geprüft; bei einer höheren Version erscheint ein Dialog mit dem Release-Link
-- **CI/CD:** Pull Requests werden bei jedem Update gebaut und gelintet; Pushes auf `main` starten Android- und iOS-Checks. Ein Release wird erst nach erfolgreichem iOS-Workflow erzeugt, damit kein Android-Release vor dem Apple-Build erscheint
+- **CI/CD:** Pull Requests werden bei jedem Update gebaut und gelintet; Pushes auf `main` starten einen gemeinsamen iOS-/Android-Release-Workflow. Android wird nur veröffentlicht, wenn der iOS-Build vorher erfolgreich war
 - **Offene Vorhaben:** als Issue-Vorlagen in [`docs/issues/`](docs/issues) – iOS ohne eigenes Gerät und Mehrsprachigkeit
 
 Die API-Endpunkte sind derzeit gemäß der vorgegebenen Annahme modelliert. Falls die Website abweichende JSON-Formate liefert, müssen nur die Modelle bzw. Retrofit-Adapter angepasst werden.

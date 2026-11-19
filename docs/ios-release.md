@@ -8,9 +8,8 @@
 > **Was der Workflow baut:** `:shared:iosSimulatorArm64Test`,
 > `:shared:assembleSharedXCFramework` und die SwiftUI-App für den Simulator.
 > Das XCFramework und die installierbare Simulator-App liegen als Artefakte am Lauf.
-> Der Cross-platform-Release-Workflow startet erst nach einem erfolgreichen
-> iOS-Workflow auf `main`; schlägt der Apple-Build fehl, wird kein Android-Release
-> veröffentlicht.
+> Der gemeinsame Main-Workflow baut iOS zuerst; schlägt der Apple-Build fehl,
+> wird der Android-Release-Job wegen `needs: ios` nicht gestartet.
 >
 > **Tempo:** Der Workflow cached Gradle und den Kotlin/Native-Compiler (`~/.konan`).
 > Steht der Job lange auf „queued“, hat GitHub noch keinen macOS-Runner zugewiesen –
@@ -32,7 +31,7 @@ ios/
   McAffen/         SwiftUI-App (Rangliste, Voten, Status, Einstellungen)
   project.yml      XcodeGen-Beschreibung → erzeugt McAffen.xcodeproj
   ExportOptions.plist
-.github/workflows/ios.yml   Manueller iOS-Build/TestFlight und paralleler iOS-Build bei jedem Cross-platform-Release
+.github/workflows/release.yml   Gemeinsamer Main-Workflow: iOS zuerst, Android-Release danach
 ```
 
 ## 1. Lokal starten (braucht einen Mac)
@@ -61,8 +60,9 @@ dein Apple-Team wählen.
 ## 2b. Wenn der Build einen eigenen Mac benutzt
 
 Die Standard-Workflows nutzen einen GitHub-gehosteten macOS-Runner
-(`runs-on: macos-13`). Falls du stattdessen einen selbst gehosteten Mac einrichten
-möchtest, ändere in `.github/workflows/ios.yml` beide `runs-on`-Einträge auf
+(`runs-on: macos-15`). Falls du stattdessen einen selbst gehosteten Mac einrichten
+möchtest, ändere in `.github/workflows/release.yml` den `runs-on`-Eintrag des
+`ios`-Jobs auf
 `[self-hosted, macOS]` und registriere den Mac einmalig:
 
 ```bash
