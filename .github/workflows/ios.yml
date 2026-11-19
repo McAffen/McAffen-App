@@ -1,0 +1,55 @@
+name: iOS Build (shared)
+
+# Baut und testet den gemeinsamen Kotlin-Kern für iOS auf einem GitHub-macOS-Runner.
+# Dafür ist kein eigener Mac und kein iPhone nötig: Tests laufen im iOS-Simulator.
+
+on:
+  pull_request:
+    paths:
+      - 'shared/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'ios/**'
+      - '.github/workflows/ios.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'shared/**'
+      - 'ios/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ios-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-ios:
+    name: Shared für iOS bauen und testen
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Tests im iOS-Simulator
+        run: ./gradlew :shared:iosSimulatorArm64Test --build-cache
+      - name: XCFramework bauen
+        run: ./gradlew :shared:assembleSharedXCFramework --build-cache
+      - name: XCFramework hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Shared.xcframework
+          path: shared/build/XCFrameworks/**/Shared.xcframework
+          if-no-files-found: error
+      - name: Testbericht hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-report
+          path: shared/build/reports/tests
+          if-no-files-found: ignore

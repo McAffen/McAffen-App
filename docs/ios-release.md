@@ -1,5 +1,12 @@
 # iOS-Version veröffentlichen
 
+> **Stand:** Aktuell gibt es nur den gemeinsamen Kern (`shared/`) mit iOS-Targets
+> (`iosArm64`, `iosSimulatorArm64`) und den Workflow `.github/workflows/ios.yml`
+> (Simulator-Tests und XCFramework auf einem GitHub-macOS-Runner – ohne eigenen Mac
+> oder iPhone). Der Ordner `ios/` mit der SwiftUI-Oberfläche, `ExportOptions.plist`
+> und der TestFlight-Job sind noch **nicht** vorhanden; die Abschnitte unten
+> beschreiben das Ziel. Die Runner-Angabe `macos-13` ist veraltet, es wird `macos-15` benutzt.
+
 Die iOS-App teilt sich den Datenkern mit Android: das Kotlin-Modul `shared/`
 spricht die mcaffen.de-API an, die SwiftUI-App in `ios/` ist die Oberfläche.
 

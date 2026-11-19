@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
+
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("com.android.library")
@@ -8,6 +10,18 @@ kotlin {
     androidTarget {
         compilations.all {
             kotlinOptions.jvmTarget = "17"
+        }
+    }
+
+    // iOS: Kotlin/Native kompiliert nur auf macOS (siehe .github/workflows/ios.yml).
+    // Auf Linux/Windows werden diese Targets übersprungen
+    // (kotlin.native.ignoreDisabledTargets in gradle.properties).
+    val xcframework = XCFramework("Shared")
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "Shared"
+            isStatic = true
+            xcframework.add(this)
         }
     }
 
@@ -24,6 +38,9 @@ kotlin {
         }
         androidMain.dependencies {
             implementation("io.ktor:ktor-client-okhttp:2.3.12")
+        }
+        iosMain.dependencies {
+            implementation("io.ktor:ktor-client-darwin:2.3.12")
         }
     }
 }
