@@ -1,10 +1,21 @@
 name: iOS Build (shared)
 
-# Baut und testet den gemeinsamen Kotlin-Kern für iOS auf einem GitHub-macOS-Runner.
-# Dafür ist kein eigener Mac und kein iPhone nötig: Tests laufen im iOS-Simulator.
+# Echter iOS-Build in der Cloud: Kotlin/Native kompiliert nur auf macOS, deshalb
+# läuft hier alles auf einem GitHub-macOS-Runner. Dafür braucht es keinen eigenen
+# Mac und kein iPhone.
 #
-# Warum dieser Lauf schnell ist:
-#  - Gradle-Cache aus dem vorherigen Lauf (setup-gradle) statt alles neu laden
+# Was hier gebaut wird:
+#  - :shared:iosSimulatorArm64Test  – Tests des gemeinsamen Kerns im iOS-Simulator
+#  - :shared:assembleSharedXCFramework – echtes iOS-Framework (arm64 + Simulator)
+#    als Artefakt "Shared.xcframework", herunterladbar im Actions-Lauf
+#
+# Was hier (noch) NICHT gebaut wird: die iOS-App selbst. Es gibt keinen Ordner
+# ios/ mit einem Xcode-Projekt. Sobald der existiert, kommen hier
+# "xcodebuild build" für den Simulator, Simulator-Screenshots und der
+# TestFlight-Upload dazu (siehe docs/issues/001-ios-ohne-eigenes-geraet.md).
+#
+# Schnell:
+#  - Gradle-Cache aus dem vorherigen Lauf (setup-gradle)
 #  - ~/.konan im Cache: der Kotlin/Native-Compiler wird nicht jedes Mal geladen
 #  - Testbericht erscheint direkt im Lauf (dorny/test-reporter)
 #  - concurrency bricht veraltete Läufe sofort ab

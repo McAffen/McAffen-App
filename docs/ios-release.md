@@ -7,6 +7,12 @@
 > und der TestFlight-Job sind noch **nicht** vorhanden; die Abschnitte unten
 > beschreiben das Ziel. Die Runner-Angabe `macos-13` ist veraltet, es wird `macos-15` benutzt.
 >
+> **Was der Workflow wirklich baut:** `:shared:iosSimulatorArm64Test` (Tests im
+> iOS-Simulator) und `:shared:assembleSharedXCFramework` (echtes iOS-Framework für
+> `iosArm64` und `iosSimulatorArm64`). Das XCFramework liegt als Artefakt
+> `Shared.xcframework` am Lauf. Die iOS-**App** baut er erst, wenn `ios/` mit dem
+> Xcode-Projekt existiert.
+>
 > **Tempo:** Der Workflow cached Gradle und den Kotlin/Native-Compiler (`~/.konan`).
 > Steht der Job lange auf „queued“, hat GitHub noch keinen macOS-Runner zugewiesen –
 > dann abbrechen und neu starten, ein zweiter Workflow-Lauf bringt nichts.
