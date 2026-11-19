@@ -167,7 +167,7 @@ jobs:
             dist/McAffen-release.apk
             dist/McAffen-release.apk.sha256
 
-  ios:
-    name: iOS Release-Build
-    uses: ./.github/workflows/ios.yml
-    secrets: inherit
+  # Der iOS-Build hängt NICHT mehr am Android-Release: macOS-Runner werden
+  # diesem Repository nicht zugeteilt, und ein hängender Job blockiert sonst
+  # den APK-Release ("Action required"). iOS wird bei Bedarf über
+  # .github/workflows/ios.yml gestartet (Run workflow).
