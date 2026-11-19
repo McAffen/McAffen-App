@@ -3,7 +3,7 @@
 App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
 (Jetpack Compose) und iOS (SwiftUI). Der Datenkern liegt geteilt in `shared/`
 (Kotlin Multiplatform).
-
+ 
 - **Android:** `app/` – Jetpack Compose, Room-Cache, In-App-Update
 - **iOS:** native SwiftUI-App in `ios/`; der gemeinsame Main-Release-Workflow baut sie für den iOS-Simulator und lädt sie als Artefakt hoch
 - **Sprachen:** Deutsch und Englisch, umschaltbar unter Einstellungen → Sprache („System“ folgt dem Gerät). Alle Texte liegen in `app/src/main/java/de/mcaffen/app/ui/Strings.kt`
