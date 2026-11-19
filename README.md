@@ -5,7 +5,7 @@ App für `mcaffen.de` mit Rangliste, Voten und Serverstatus – für Android
 (Kotlin Multiplatform).
 
 - **Android:** `app/` – Jetpack Compose, Room-Cache, In-App-Update
-- **iOS:** `ios/` – SwiftUI, Updates über den App Store
+- **iOS:** in Arbeit – `shared/` baut bereits für iOS (CI: `.github/workflows/ios.yml`); die iOS-Oberfläche (`ios/`) folgt
 - **Gemeinsam:** `shared/` – Modelle, API-Zugriff (Ktor), Vote-Seiten, Update-Logik
 - **iOS veröffentlichen:** siehe [docs/ios-release.md](docs/ios-release.md)
 
