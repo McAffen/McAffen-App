@@ -10,3 +10,6 @@ local.properties
 
 # Build-Ausgaben des shared-Moduls
 shared/build/
+
+# Kotlin-Compiler-Logs
+.kotlin/

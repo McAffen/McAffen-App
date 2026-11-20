@@ -68,6 +68,34 @@ jobs:
           path: ios/build/McAffen-iOS-Simulator.app.zip
           if-no-files-found: error
           retention-days: 14
+      # Unsigniertes IPA für echte iPhones: AltStore oder Sideloadly signieren es
+      # beim Installieren mit der eigenen Apple-ID (siehe README). Fällt dieser
+      # Schritt aus, bleibt der Release trotzdem möglich.
+      - name: Unsigniertes iPhone-IPA bauen
+        id: ipa
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ios/McAffen.xcodeproj \
+            -scheme McAffen \
+            -sdk iphoneos \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath ios/build-device \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+          mkdir -p ios/build-device/ipa/Payload
+          cp -R ios/build-device/Build/Products/Release-iphoneos/McAffen.app ios/build-device/ipa/Payload/
+          (cd ios/build-device/ipa && zip -qry ../McAffen-unsigned.ipa Payload)
+      - name: IPA hochladen
+        if: steps.ipa.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: McAffen-unsigned.ipa
+          path: ios/build-device/McAffen-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
 
   release:
     needs: ios
@@ -81,6 +109,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: McAffen-iOS-Simulator.app.zip
+          path: dist
+      - name: iPhone-IPA herunterladen (falls gebaut)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: McAffen-unsigned.ipa
           path: dist
       - uses: actions/setup-java@v4
         with:
@@ -227,10 +261,11 @@ jobs:
             ---
             **Installation:** Die App lädt das Update selbst herunter und installiert es über die bestehende Version – deine Daten bleiben erhalten.
             **Prüfsumme:** `${{ steps.checksum.outputs.checksum }}` (auch als `McAffen-release.apk.sha256` dabei)
-            **Apple:** `McAffen-iOS-Simulator.app.zip` ist ein Build für den iOS-Simulator. Für ein echtes iPhone ist zusätzlich Apple-Signing/TestFlight erforderlich.
+            **iPhone:** `McAffen-unsigned.ipa` mit AltStore oder Sideloadly installieren (Anleitung im README). `McAffen-iOS-Simulator.app.zip` läuft nur im Xcode-Simulator.
           generate_release_notes: false
           target_commitish: ${{ github.sha }}
           files: |
             dist/McAffen-release.apk
             dist/McAffen-release.apk.sha256
             dist/McAffen-iOS-Simulator.app.zip
+            dist/McAffen-unsigned.ipa

@@ -34,7 +34,6 @@ class SettingsStore(context: Context) {
     /** Zeitstempel der letzten Update-Prüfung – begrenzt die API-Anfragen (Rate-Limit). */
     val lastUpdateCheck = MutableStateFlow(prefs.getLong(KEY_LAST_UPDATE_CHECK, 0L))
 
-    /** Wann wurde welche Vote-Seite zuletzt vom Nutzer geöffnet (2-stündige/24-h-Rhythmus der Vote-Seiten). */
     /**
      * Wie Vote-Seiten geöffnet werden:
      * "IN_APP"  = eingebauter Browser (Custom Tab, direkt in der App),
