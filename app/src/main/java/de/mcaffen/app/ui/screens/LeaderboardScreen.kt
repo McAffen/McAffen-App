@@ -780,16 +780,63 @@ internal data class BoardSort(
     val emoji: String,
 )
 
+private const val JUMP_PREFIX = "jump:"
+
 internal val BOARD_SORTS = listOf(
     BoardSort("waves", "common.waves", "common.waves", "🌊"),
     BoardSort("kills", "common.kills", "common.kills", "⚔️"),
     BoardSort("games", "common.games", "common.games", "🎮"),
     BoardSort("coins", "common.coins", "common.coins", "🪙"),
+    BoardSort("jump:score", "common.score", "common.score", "🏅"),
+    BoardSort("jump:runs", "common.runs", "common.runs", "🏃"),
+    BoardSort("jump:blocks", "common.blocks", "common.blocks", "🧱"),
 )
 
 /** Segment-Umschalter für die Ranglisten-Werte mit gleitendem Hintergrund. */
 @Composable
 private fun BoardSortRow(selected: String, onSelect: (String) -> Unit) {
+    val jump = selected.startsWith(JUMP_PREFIX)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        GameSwitchRow(jump = jump) { toJump -> onSelect(if (toJump) "jump:score" else "waves") }
+        BoardSortSegments(selected, onSelect)
+    }
+}
+
+/** Wechselt zwischen den Spielen „Nacht der Untoten“ und „Jump'n'Run“. */
+@Composable
+private fun GameSwitchRow(jump: Boolean, onSelect: (Boolean) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(false to "board.game.ndu", true to "board.game.jump").forEach { (isJump, labelKey) ->
+            val active = isJump == jump
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    )
+                    .clickable { onSelect(isJump) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    LocalStrings.current[labelKey],
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                    color = if (active) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoardSortSegments(selected: String, onSelect: (String) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -798,7 +845,7 @@ private fun BoardSortRow(selected: String, onSelect: (String) -> Unit) {
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        BOARD_SORTS.forEach { sort ->
+        BOARD_SORTS.filter { it.key.startsWith(JUMP_PREFIX) == selected.startsWith(JUMP_PREFIX) }.forEach { sort ->
             val active = sort.key == selected
             val background by animateColorAsState(
                 targetValue = if (active) MaterialTheme.colorScheme.primary else Color.Transparent,

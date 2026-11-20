@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import de.mcaffen.app.ui.LocalStrings
 
 /**
  * Blendet Inhalt beim ersten Anzeigen mit Feder und Fade ein.
@@ -86,7 +87,7 @@ fun BootSplash(
     modifier: Modifier = Modifier,
     show: Boolean,
     animationsEnabled: Boolean = true,
-    text: String = "McAffen wird geladen",
+    text: String = LocalStrings.current["boot.loading"],
     logo: @Composable (Modifier) -> Unit,
 ) {
     AnimatedVisibility(

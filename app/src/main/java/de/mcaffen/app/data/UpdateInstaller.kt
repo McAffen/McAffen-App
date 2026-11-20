@@ -101,7 +101,7 @@ object UpdateInstaller {
             }
             // Integrität: übertragene Bytes müssen der erwarteten Länge entsprechen.
             if (total > 0 && copied != total) {
-                throw IllegalStateException("Download unvollständig ($copied/$total Bytes)")
+                throw IllegalStateException("Incomplete download ($copied/$total bytes)")
             }
         }
         if (!temp.renameTo(target)) {

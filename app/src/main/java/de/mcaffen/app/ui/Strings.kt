@@ -1,9 +1,11 @@
 package de.mcaffen.app.ui
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import de.mcaffen.app.data.SettingsStore
 import java.util.Locale
 
 /**
@@ -106,7 +108,7 @@ private val translations: Map<String, Pair<String, String>> = buildMap {
     t("vote.progressCount", "%d von %d bereit", "%d of %d ready")
     t("vote.forPlayer", "Voten für %s – jede Seite bringt Punkte.", "Vote for %s – every site earns points.")
     t("vote.unlock", "Spieler prüfen, um alle Seiten freizuschalten.", "Check your player to unlock all sites.")
-    t("vote.reward.default", "Vote-Schlüssel & Coins", "Vote keys & coins")
+    t("vote.reward.default", "1 Vote-Schlüssel + 100 Coins", "1 vote key + 100 coins")
     t("vote.readyAgain", "Bereit – du kannst wieder voten", "Ready – you can vote again")
     t("vote.againIn", "Wieder möglich in %s", "Available again in %s")
     t("vote.action.vote", "Voten", "Vote")
@@ -301,6 +303,43 @@ private val translations: Map<String, Pair<String, String>> = buildMap {
     t("lan.step3.detail", "Die App sendet eine Bedrock-LAN-Ankündigung. Die Konsole muss im gleichen WLAN sein; Mobilfunk und Gast-WLAN mit Client-Isolation funktionieren nicht.", "The app sends a Bedrock LAN announcement. The console must be on the same Wi-Fi; mobile data and guest Wi-Fi with client isolation do not work.")
     t("lan.step4.title", "In der Konsole suchen", "Search on the console")
     t("lan.step4.detail", "Im Spiel unter „Freunde“ bzw. „LAN-Welten“ nach Welten suchen. Die Welt erscheint als LAN-Welt und verbindet sich über %s.", "In the game, search for worlds under “Friends” or “LAN worlds”. The world appears as a LAN world and connects via %s.")
+
+    // --- Rangliste: zweites Spiel (Jump'n'Run) --------------------------------
+    t("common.score", "Punkte", "Score")
+    t("common.runs", "Runs", "Runs")
+    t("common.blocks", "Blöcke", "Blocks")
+    t("board.game.ndu", "Nacht der Untoten", "Night of the Dead")
+    t("board.game.jump", "Jump'n'Run", "Jump'n'Run")
+
+    // --- Sprachwahl im Willkommens-Flow ---------------------------------------
+    t("welcome.lang.eyebrow", "Sprache", "Language")
+    t("welcome.lang.title", "Wähle deine Sprache", "Choose your language")
+    t("welcome.lang.text", "Die App spricht Deutsch und Englisch. Du kannst die Sprache jederzeit in den Einstellungen ändern.", "The app speaks German and English. You can change the language at any time in Settings.")
+
+    // --- Weitere Texte, die vorher fest im Code standen -----------------------
+    t("boot.loading", "McAffen wird geladen", "Loading McAffen")
+    t("cd.logo", "McAffen-Logo", "McAffen logo")
+    t("about.whatsNew", "Was ist neu?", "What's new?")
+    t("about.openSource", "Open Source auf GitHub – Feedback und Pull Requests sind willkommen.", "Open source on GitHub – feedback and pull requests are welcome.")
+    t("legal.translationNote", "Übersetzung zur besseren Verständlichkeit. Rechtlich maßgeblich ist die deutsche Fassung.", "Convenience translation. Only the German version is legally binding.")
+    t("status.fallback.playersOnline", "%s: %d Spieler online", "%s: %d players online")
+    t("lan.thisDeviceIp", "IP dieses Geräts", "this device's IP")
+
+    // --- Update-Benachrichtigungen ---------------------------------------------
+    t("notif.headline", "Version %s ist da", "Version %s is here")
+    t("notif.criticalSuffix", " · Pflicht-Update", " · Required update")
+    t("notif.defaultName", "Neue Version der McAffen-App", "New version of the McAffen app")
+    t("notif.titleCritical", "Pflicht-Update %s", "Required update %s")
+    t("notif.titleAvailable", "Update verfügbar: %s", "Update available: %s")
+    t("notif.versions", "Installiert: %s · Neu: %s", "Installed: %s · New: %s")
+    t("notif.install", "Jetzt installieren", "Install now")
+    t("notif.later", "Später", "Later")
+    t("notif.downloading", "Update wird geladen", "Downloading update")
+    t("notif.progress", "%d % – bitte in der App bleiben", "%d % – please stay in the app")
+    t("notif.ready", "Update bereit", "Update ready")
+    t("notif.readyText", "Tippe hier, um die Installation abzuschließen.", "Tap here to finish the installation.")
+    t("notif.channel", "McAffen-Updates", "McAffen updates")
+    t("notif.channelDesc", "Informiert über neue McAffen-App-Versionen", "Notifies you about new McAffen app versions")
 }
 
 /** Aktive Sprache als CompositionLocal – jede Composable holt die Texte über [strings]. */
@@ -333,6 +372,17 @@ class Strings(val language: AppLanguage) {
         private val cache = mutableMapOf<AppLanguage, Strings>()
 
         fun of(language: AppLanguage): Strings = cache.getOrPut(language) { Strings(language) }
+
+        /**
+         * Texte in der gespeicherten App-Sprache – für Stellen ohne Compose
+         * (Benachrichtigungen, Hintergrund-Worker).
+         */
+        fun forContext(context: Context): Strings {
+            val setting = context
+                .getSharedPreferences(SettingsStore.PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(SettingsStore.KEY_LANGUAGE, null) ?: AppLanguage.SYSTEM
+            return of(AppLanguage.resolve(setting))
+        }
     }
 }
 

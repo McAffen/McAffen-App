@@ -211,7 +211,7 @@ object LanBridge {
      */
     fun steps(localIp: String?, language: AppLanguage = AppLanguage.GERMAN): List<LanStep> {
         val strings = Strings.of(language)
-        val address = localIp ?: if (language == AppLanguage.ENGLISH) "this device's IP" else "IP dieses Geräts"
+        val address = localIp ?: strings["lan.thisDeviceIp"]
         return listOf(
             LanStep(
                 title = strings["lan.step1.title"],

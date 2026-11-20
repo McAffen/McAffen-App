@@ -22,6 +22,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import de.mcaffen.app.BuildConfig
 import de.mcaffen.app.R
+import de.mcaffen.app.ui.Strings
 import de.mcaffen.app.model.AppRelease
 import java.util.concurrent.TimeUnit
 
@@ -147,6 +148,7 @@ object UpdateNotifier {
         )
 
         val installed = BuildConfig.VERSION_NAME
+        val strings = Strings.forContext(context)
         val newVersion = release.tagName.removePrefix("v")
         val sizeText = release.assetSize
             ?.takeIf { it > 0 }
@@ -168,11 +170,11 @@ object UpdateNotifier {
         )
 
         val bigText = buildString {
-            append("Version $newVersion ist da")
-            if (release.critical) append(" · Pflicht-Update")
+            append(strings.format("notif.headline", newVersion))
+            if (release.critical) append(strings["notif.criticalSuffix"])
             append(sizeText)
             append("\n")
-            append(release.name?.takeIf { it.isNotBlank() } ?: "Neue Version der McAffen-App")
+            append(release.name?.takeIf { it.isNotBlank() } ?: strings["notif.defaultName"])
             val notes = release.notes
                 ?.lineSequence()
                 ?.filter { it.isNotBlank() && !it.startsWith("[kritisch]") }
@@ -186,12 +188,12 @@ object UpdateNotifier {
             .setColor(0xFF3F7F32.toInt())
             .setContentTitle(
                 if (release.critical) {
-                    "Pflicht-Update $newVersion"
+                    strings.format("notif.titleCritical", newVersion)
                 } else {
-                    "Update verfügbar: $newVersion"
+                    strings.format("notif.titleAvailable", newVersion)
                 },
             )
-            .setContentText("Installiert: $installed · Neu: $newVersion")
+            .setContentText(strings.format("notif.versions", installed, newVersion))
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setPriority(if (release.critical) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_SYSTEM)
@@ -201,10 +203,10 @@ object UpdateNotifier {
             .setContentIntent(pendingIntent)
             .addAction(
                 R.drawable.ic_stat_update,
-                "Jetzt installieren",
+                strings["notif.install"],
                 installPending,
             )
-            .addAction(R.drawable.ic_stat_update, "Später", laterPending(context, release.tagName))
+            .addAction(R.drawable.ic_stat_update, strings["notif.later"], laterPending(context, release.tagName))
             .build()
         notifyIfAllowed(context, manager, NOTIFICATION_ID, notification)
     }
@@ -213,11 +215,12 @@ object UpdateNotifier {
     fun updateProgress(context: Context, percent: Int) {
         val manager = NotificationManagerCompat.from(context)
         ensureChannel(context)
+        val strings = Strings.forContext(context)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_update)
             .setColor(0xFF3F7F32.toInt())
-            .setContentTitle("Update wird geladen")
-            .setContentText("$percent % – bitte in der App bleiben")
+            .setContentTitle(strings["notif.downloading"])
+            .setContentText(strings.format("notif.progress", percent.coerceIn(0, 100)))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setProgress(100, percent.coerceIn(0, 100), false)
@@ -234,11 +237,12 @@ object UpdateNotifier {
             context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent()
             )
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        val strings = Strings.forContext(context)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_update)
             .setColor(0xFF3F7F32.toInt())
-            .setContentTitle("Update bereit")
-            .setContentText("Tippe hier, um die Installation abzuschließen.")
+            .setContentTitle(strings["notif.ready"])
+            .setContentText(strings["notif.readyText"])
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(
@@ -278,14 +282,16 @@ object UpdateNotifier {
     private fun ensureChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+        // Kein früher Rückgabewert: createNotificationChannel aktualisiert Name und
+        // Beschreibung eines bestehenden Kanals, so folgt er der gewählten Sprache.
+        val strings = Strings.forContext(context)
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "McAffen-Updates",
+                strings["notif.channel"],
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
-                description = "Informiert über neue McAffen-App-Versionen"
+                description = strings["notif.channelDesc"]
                 enableVibration(true)
             },
         )

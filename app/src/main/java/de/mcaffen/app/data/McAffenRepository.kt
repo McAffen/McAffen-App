@@ -8,6 +8,8 @@ import de.mcaffen.app.model.PlayerStat
 import de.mcaffen.app.model.ServerInfo
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.network.McAffenApi
+import de.mcaffen.app.ui.AppLanguage
+import de.mcaffen.app.ui.Strings
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +21,10 @@ import java.io.File
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
+/** Rangliste des zweiten Spiels: Sortierschlüssel wie `jump:score` → `spiel=jump&sort=score`. */
+const val JUMP_PREFIX = "jump:"
+private const val JUMP_GAME = "jump"
+
 /** Rohformat eines Rechtstextes aus dem MC_LEGAL-Objekt der Website. */
 data class LegalRaw(val title: String?, val html: String?)
 
@@ -27,6 +33,7 @@ class McAffenRepository(
     private val dao: CacheDao,
     private val client: OkHttpClient,
     moshi: Moshi,
+    private val language: () -> AppLanguage = { AppLanguage.GERMAN },
 ) {
     val players = dao.players().map { items -> items.map(PlayerEntity::toModel) }
     val voteSites = dao.voteSites().map { items -> items.map(VoteSiteEntity::toModel) }
@@ -71,7 +78,9 @@ class McAffenRepository(
      * damit die Haupt-Rangliste davon unberührt bleibt.
      */
     suspend fun leaderboard(sort: String): List<PlayerStat> {
-        val rows = api.getLeaderboard(sort)
+        // „jump:score“ = Jump'n'Run-Rangliste, alles andere gehört zu Nacht der Untoten.
+        val game = if (sort.startsWith(JUMP_PREFIX)) JUMP_GAME else null
+        val rows = api.getLeaderboard(sort.removePrefix(JUMP_PREFIX), game)
         return rows
             .filter { it.name.isNotBlank() }
             .map { PlayerStat(it.name, it.score) }
@@ -87,8 +96,10 @@ class McAffenRepository(
     // --- Neue API-Endpunkte (https://mcaffen.de/api) ---------------------
 
     /** Alle Ranglisten direkt von `/api/rangliste?sort=…` (kein Cache). */
-    suspend fun board(sort: String): List<PlayerStat> =
-        api.getLeaderboard(sort).map { PlayerStat(it.name, it.score) }
+    suspend fun board(sort: String): List<PlayerStat> = leaderboard(sort)
+
+    /** Partner und Creator. */
+    suspend fun partners() = api.getPartners()
 
     /** Spielerprofil mit NDU-Statistiken, Rängen, Votes und Skin. */
     suspend fun player(name: String) = api.getPlayer(name.trim())
@@ -162,7 +173,7 @@ class McAffenRepository(
             val online = raw.servers.sumOf { it.players?.online ?: 0 }
             val networkServers = raw.servers.size.takeIf { it > 0 } ?: infos.size
             val messages = raw.messages
-                .ifEmpty { infos.filter { it.online }.map { "${it.name}: ${it.players} Spieler online" } }
+                .ifEmpty { infos.filter { it.online }.map { Strings.of(language()).format("status.fallback.playersOnline", it.name, it.players) } }
             dao.saveStatus(
                 ServerStatusEntity(
                     onlinePlayers = online,

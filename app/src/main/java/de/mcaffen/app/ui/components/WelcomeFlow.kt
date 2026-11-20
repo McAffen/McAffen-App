@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.mcaffen.app.R
+import de.mcaffen.app.ui.AppLanguage
 import de.mcaffen.app.ui.LocalStrings
 import de.mcaffen.app.ui.McAffenBrand
 import kotlinx.coroutines.delay
@@ -78,19 +80,22 @@ private val slides = listOf(
 
 /**
  * Erststart-Erlebnis: animierter Willkommens-Screen mit Farbwolken, schwebenden
- * Partikeln, Slider-Screens und Namenseingabe. Ersetzt den alten statischen Dialog.
+ * Partikeln, Sprachwahl, Slider-Screens und Namenseingabe. Ersetzt den alten statischen Dialog.
  */
 @Composable
 fun WelcomeFlow(
     initialName: String,
     animationsEnabled: Boolean,
+    language: String,
+    onLanguageChange: (String) -> Unit,
     onConfirm: (String) -> Unit,
     onSkip: () -> Unit,
 ) {
-    val pager = rememberPagerState(pageCount = { slides.size })
+    // Seite 0 ist die Sprachwahl, danach folgen die Folien.
+    val pager = rememberPagerState(pageCount = { slides.size + 1 })
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf(initialName) }
-    val isLast = pager.currentPage == slides.lastIndex
+    val isLast = pager.currentPage == slides.size
     // Kurze Verzögerung, damit Hintergrund-Effekte nicht mit dem Activity-Start konkurrieren.
     var entered by remember { mutableStateOf(!animationsEnabled) }
     LaunchedEffect(Unit) {
@@ -142,10 +147,18 @@ fun WelcomeFlow(
                     .weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
             ) { page ->
-                SlideContent(
-                    slide = slides[page],
-                    animationsEnabled = animationsEnabled,
-                )
+                if (page == 0) {
+                    LanguageContent(
+                        selected = AppLanguage.resolve(language),
+                        onSelect = { onLanguageChange(it.code) },
+                        animationsEnabled = animationsEnabled,
+                    )
+                } else {
+                    SlideContent(
+                        slide = slides[page - 1],
+                        animationsEnabled = animationsEnabled,
+                    )
+                }
             }
 
             // Seitenanzeige
@@ -153,7 +166,7 @@ fun WelcomeFlow(
                 Modifier.padding(vertical = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                slides.indices.forEach { index ->
+                (0 until pager.pageCount).forEach { index ->
                     val active = pager.currentPage == index
                     Box(
                         Modifier
@@ -255,6 +268,83 @@ fun WelcomeFlow(
     }
 }
 
+/** Erste Seite: Sprache wählen. Die Texte wechseln sofort mit der Auswahl. */
+@Composable
+private fun LanguageContent(
+    selected: AppLanguage,
+    onSelect: (AppLanguage) -> Unit,
+    animationsEnabled: Boolean,
+) {
+    val strings = LocalStrings.current
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            GlowHalo(size = 220.dp, enabled = animationsEnabled)
+            FloatingEmoji("🌍", animationsEnabled)
+        }
+        PillChip(
+            text = strings["welcome.lang.eyebrow"].uppercase(),
+            color = MaterialTheme.colorScheme.primary,
+            containerAlpha = 0.16f,
+        )
+        Text(
+            strings["welcome.lang.title"],
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            strings["welcome.lang.text"],
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+        )
+        listOf(AppLanguage.GERMAN to "🇩🇪", AppLanguage.ENGLISH to "🇬🇧").forEach { (option, flag) ->
+            val active = option == selected
+            Surface(
+                onClick = { onSelect(option) },
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                border = BorderStroke(
+                    width = if (active) 2.dp else 1.dp,
+                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(flag, fontSize = 24.sp)
+                    Spacer(Modifier.width(14.dp))
+                    Text(
+                        option.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (active) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SlideContent(
     slide: WelcomeSlide,
@@ -352,7 +442,7 @@ fun BrandLogo(
     }
     Image(
         painter = painterResource(R.drawable.mcaffen_logo),
-        contentDescription = "McAffen-Logo",
+        contentDescription = LocalStrings.current["cd.logo"],
         contentScale = ContentScale.Crop,
         modifier = modifier
             .clip(CircleShape)

@@ -219,6 +219,13 @@ class McAffenViewModel(
         }
     }
 
+    /** Nach einem Sprachwechsel: Status holen und bereits geladene Server-Texte erneuern. */
+    fun reloadLocalized() {
+        refresh()
+        if (_news.value.isNotEmpty()) loadNews(force = true)
+        if (_modes.value.isNotEmpty()) loadModes(force = true)
+    }
+
     /** Live-Test der Rangliste: schreibt das Ergebnis in die Snackbar. */
     fun testLeaderboard() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -524,6 +531,14 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
     }
 
     LaunchedEffect(Unit) { vm.refresh() }
+    // Sprachwechsel: Server-Texte (Meldungen, News, Spielmodi) neu in der neuen Sprache holen.
+    var languageSeen by remember { mutableStateOf(languageSetting) }
+    LaunchedEffect(languageSetting) {
+        if (languageSetting != languageSeen) {
+            languageSeen = languageSetting
+            vm.reloadLocalized()
+        }
+    }
     LaunchedEffect(error) { error?.let { snackbar.showSnackbar(it) } }
     LaunchedEffect(updateNotice) {
         updateNotice?.let {
@@ -625,7 +640,7 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
 
     legalKey?.let { key ->
         val cached = legalCache[key]
-        legalDocument(key, cached?.title, cached?.html)
+        legalDocument(key, AppLanguage.resolve(languageSetting), cached?.title, cached?.html)
     }?.let { document ->
         LegalDialog(document = document, onDismiss = { legalKey = null })
     }
@@ -968,6 +983,8 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
         WelcomeFlow(
             initialName = myName,
             animationsEnabled = animationsEnabled,
+            language = languageSetting,
+            onLanguageChange = settings::setLanguage,
             onConfirm = { name ->
                 if (name.isNotBlank()) settings.setPlayerName(name.trim())
                 settings.setOnboardingDone()
