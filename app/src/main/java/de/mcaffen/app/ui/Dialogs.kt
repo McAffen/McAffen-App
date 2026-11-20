@@ -135,7 +135,7 @@ internal fun UpdateDialog(
                         verticalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
                         Text(
-                            "Was ist neu?",
+                            LocalStrings.current["about.whatsNew"],
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                         )
@@ -325,7 +325,7 @@ internal fun AboutDialog(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        "Open Source auf GitHub – Feedback und Pull Requests sind willkommen.",
+                        LocalStrings.current["about.openSource"],
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

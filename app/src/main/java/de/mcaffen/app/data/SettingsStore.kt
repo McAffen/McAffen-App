@@ -156,7 +156,7 @@ class SettingsStore(context: Context) {
     private fun dayKey(): String =
         SimpleDateFormat(DAY_FORMAT, Locale.US).format(Date())
 
-    private companion object {
+    internal companion object {
         const val PREFS_NAME = "mcaffen_settings"
         const val KEY_VOTE_BROWSER = "vote_browser"
         const val KEY_DARK_MODE = "dark_mode"

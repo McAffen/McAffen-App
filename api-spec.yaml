@@ -1,17 +1,65 @@
 openapi: 3.0.3
 info:
   title: McAffen API
-  description: API for mcaffen.de
-  version: 1.0.0
+  description: |
+    Read-only API for mcaffen.de (version 2). No login required.
+
+    Texts are German by default; append `?lang=en` to any endpoint for English
+    (status messages, news, game modes, FAQ, rules). The Android app does this
+    automatically while the app language is English.
+
+    Only the schemas that the apps rely on are described in detail. The other
+    endpoints are listed with their parameters; their response shapes are defined
+    by the DTOs in `app/src/main/java/de/mcaffen/app/network/McAffenApi.kt`.
+  version: 2.0.0
 servers:
   - url: https://mcaffen.de/api
+parameters: []
 paths:
+  /status:
+    get:
+      tags: [Status]
+      summary: Live network status (players online, proxy and backend servers, active messages)
+      parameters:
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200':
+          description: Server status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerStatus'
+  /info:
+    get:
+      tags: [Info]
+      summary: Server info (address, version, Discord, social media, Discord members)
+      parameters:
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200':
+          description: Server info
   /rangliste:
     get:
-      tags:
-        - Leaderboard
-      summary: Retrieve the leaderboard
-      operationId: getLeaderboard
+      tags: [Leaderboard]
+      summary: Top 100 of a game mode
+      description: |
+        Night of the Dead (default): `sort` = `waves`, `kills`, `games`, `coins`.
+        Jump'n'Run: `spiel=jump` and `sort` = `score`, `runs`, `blocks`.
+      parameters:
+        - name: spiel
+          in: query
+          required: false
+          description: Game; omit for Night of the Dead
+          schema:
+            type: string
+            enum: [jump]
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [waves, kills, games, coins, score, runs, blocks]
+            default: waves
       responses:
         '200':
           description: A list of player statistics
@@ -21,12 +69,23 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PlayerStat'
+  /spieler/{name}:
+    get:
+      tags: [Leaderboard]
+      summary: Statistics of a single player
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Player profile (Night of the Dead stats, ranks, votes, skin)
   /voten:
     get:
-      tags:
-        - Voting
-      summary: Retrieve the voting sites
-      operationId: getVoteSites
+      tags: [Voting]
+      summary: Vote sites with links
       responses:
         '200':
           description: A list of vote sites
@@ -36,20 +95,104 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/VoteSite'
-  /status:
+  /news:
     get:
-      tags:
-        - Status
-      summary: Retrieve server status
-      operationId: getServerStatus
+      tags: [Content]
+      summary: Blog posts
+      parameters:
+        - $ref: '#/components/parameters/Lang'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
       responses:
         '200':
-          description: Server status
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerStatus'
+          description: List of posts
+  /news/{slug}:
+    get:
+      tags: [Content]
+      summary: A single post including its text
+      parameters:
+        - $ref: '#/components/parameters/Lang'
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The post
+  /events:
+    get:
+      tags: [Content]
+      summary: Upcoming events and weekly dates
+      parameters:
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200':
+          description: Events
+  /spielmodi:
+    get:
+      tags: [Content]
+      summary: Game modes with status (playable, maintenance or soon)
+      parameters:
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200':
+          description: List of game modes
+  /team:
+    get:
+      tags: [Content]
+      summary: Team members
+      responses:
+        '200':
+          description: List of team members
+  /partner:
+    get:
+      tags: [Content]
+      summary: Partners and creators
+      responses:
+        '200':
+          description: List of partners
+  /faq:
+    get:
+      tags: [Content]
+      summary: Frequently asked questions
+      parameters:
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200':
+          description: List of questions and answers
+  /regeln:
+    get:
+      tags: [Content]
+      summary: Server rules
+      parameters:
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        '200':
+          description: List of rules
+  /ideen:
+    get:
+      tags: [Content]
+      summary: Idea box with votes
+      responses:
+        '200':
+          description: List of ideas
 components:
+  parameters:
+    Lang:
+      name: lang
+      in: query
+      required: false
+      description: Language of the returned texts; German if omitted
+      schema:
+        type: string
+        enum: [de, en]
+        default: de
   schemas:
     PlayerStat:
       type: object

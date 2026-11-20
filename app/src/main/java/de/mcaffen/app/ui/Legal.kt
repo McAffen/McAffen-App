@@ -28,7 +28,7 @@ data class LegalDocument(
     val sections: List<LegalSection>,
 )
 
-private fun text(vararg paragraphs: String) = paragraphs.toList()
+internal fun text(vararg paragraphs: String) = paragraphs.toList()
 
 val impressumDocument = LegalDocument(
     title = "Impressum",
@@ -95,20 +95,36 @@ val agbDocument = LegalDocument(
     ),
 )
 
-private val offlineDocuments = mapOf(
+private val offlineDocumentsDe = mapOf(
     "impressum" to impressumDocument,
     "datenschutz" to datenschutzDocument,
     "agb" to agbDocument,
 )
 
-val LEGAL_IDS = offlineDocuments.keys.toList()
+private val offlineDocumentsEn = mapOf(
+    "impressum" to impressumDocumentEn,
+    "datenschutz" to datenschutzDocumentEn,
+    "agb" to agbDocumentEn,
+)
+
+val LEGAL_IDS = offlineDocumentsDe.keys.toList()
 
 /**
- * Erzeugt das Dokument zur Anzeige: Die mit mcaffen.de synchronisierte Version
- * (falls vorhanden) oder der integrierte Offline-Text als Fallback.
+ * Erzeugt das Dokument zur Anzeige.
+ *
+ * Deutsch: die mit mcaffen.de synchronisierte Version (falls vorhanden) oder der
+ * integrierte Offline-Text als Fallback. Englisch: die mitgelieferte Übersetzung –
+ * die synchronisierten Texte der Website sind deutsch. Rechtlich maßgeblich bleibt
+ * immer die deutsche Fassung (der Dialog weist darauf hin).
  */
-fun legalDocument(id: String, cachedTitle: String?, cachedHtml: String?): LegalDocument {
-    val offline = offlineDocuments[id] ?: impressumDocument
+fun legalDocument(
+    id: String,
+    language: AppLanguage,
+    cachedTitle: String?,
+    cachedHtml: String?,
+): LegalDocument {
+    if (language == AppLanguage.ENGLISH) return offlineDocumentsEn[id] ?: impressumDocumentEn
+    val offline = offlineDocumentsDe[id] ?: impressumDocument
     if (cachedHtml.isNullOrBlank()) return offline
     val sections = htmlToSections(cachedHtml) ?: return offline
     return offline.copy(
@@ -184,6 +200,13 @@ fun LegalDialog(document: LegalDocument, onDismiss: () -> Unit) {
                     section.paragraphs.forEach { paragraph ->
                         Text(paragraph, style = MaterialTheme.typography.bodyMedium)
                     }
+                }
+                if (LocalStrings.current.language == AppLanguage.ENGLISH) {
+                    Text(
+                        LocalStrings.current["legal.translationNote"],
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
                 Text(
                     formatString("about.legalFooter", document.sourceUrl),

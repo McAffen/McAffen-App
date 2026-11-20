@@ -85,6 +85,8 @@ interface McAffenApi {
     @GET("rangliste")
     suspend fun getLeaderboard(
         @Query("sort") sort: String = "waves",
+        // `jump` = Jump'n'Run (sort: score, runs, blocks); ohne Angabe Nacht der Untoten.
+        @Query("spiel") game: String? = null,
     ): List<RankRow>
 
     /** Netzwerkstatus: `/api/status` (gleiches Format wie zuvor). */

@@ -31,10 +31,11 @@ Apple erlaubt keine Installation einer Datei per Klick. Es gibt zwei Wege:
 
 ## Funktionen
 
-- **Rangliste:** Platzierungen aller Spieler.
+- **Sprachen:** Deutsch und Englisch. Beim ersten Start wählst du die Sprache, später unter *Einstellungen → Sprache*. Die Texte der API (Meldungen, News, Spielmodi) folgen der Sprache.
+- **Rangliste:** Platzierungen aller Spieler, für *Nacht der Untoten* und *Jump'n'Run*.
 - **Voten:** Vote-Links werden erst nach erfolgreicher Spielersuche und HTTPS-Prüfung freigeschaltet.
 - **Serverstatus:** Spielerzahl, Server und Meldungen.
-- **Android zusätzlich:** Offline-Cache, Bedrock-LAN-Brücke für Konsolen, In-App-Updates, Deutsch/Englisch (Einstellungen → Sprache), Themes.
+- **Android zusätzlich:** Offline-Cache, Bedrock-LAN-Brücke für Konsolen, In-App-Updates, Themes. Die Rangliste zeigt auch Jump'n'Run.
 
 Die iOS-App ist eine schlanke SwiftUI-Version mit Rangliste, Voten und Status (aktuell nur Deutsch).
 
