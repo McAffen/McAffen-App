@@ -13,8 +13,21 @@ jobs:
     name: iOS bauen und testen
     runs-on: macos-15
     timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+      - name: Determine release tag
+        id: tag
+        run: |
+          set -euo pipefail
+          # Alle Tags holen (auch die, die nicht im Checkout liegen).
+          git fetch --tags --force --quiet || true
+          highest="$(git tag --list 'v1.0.*' | sed -E 's/^v1\.0\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -n 1)"
+          highest="${highest:-0}"
+          next="$(( highest + 1 ))"
+          echo "tag=v1.0.${next}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Höchste vorhandene Version: v1.0.${highest} → neues Release v1.0.${next}"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -46,6 +59,8 @@ jobs:
         working-directory: ios
         run: xcodegen generate
       - name: iOS-App für Simulator bauen
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
           xcodebuild \
             -project ios/McAffen.xcodeproj \
@@ -55,6 +70,7 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO \
+            MARKETING_VERSION="${TAG#v}" \
             build
       - name: Simulator-App als ZIP packen
         run: |
@@ -74,6 +90,8 @@ jobs:
       - name: Unsigniertes iPhone-IPA bauen
         id: ipa
         continue-on-error: true
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
           set -euo pipefail
           xcodebuild \
@@ -84,6 +102,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath ios/build-device \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            MARKETING_VERSION="${TAG#v}" \
             build
           mkdir -p ios/build-device/ipa/Payload
           cp -R ios/build-device/Build/Products/Release-iphoneos/McAffen.app ios/build-device/ipa/Payload/
@@ -126,15 +145,7 @@ jobs:
       # jedes Update über die installierte App an.
       - name: Determine release tag
         id: tag
-        run: |
-          set -euo pipefail
-          # Alle Tags holen (auch die, die nicht im Checkout liegen).
-          git fetch --tags --force --quiet || true
-          highest="$(git tag --list 'v1.0.*' | sed -E 's/^v1\.0\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -n 1)"
-          highest="${highest:-0}"
-          next="$(( highest + 1 ))"
-          echo "tag=v1.0.${next}" >> "$GITHUB_OUTPUT"
-          echo "::notice::Höchste vorhandene Version: v1.0.${highest} → neues Release v1.0.${next}"
+        run: echo "tag=${{ needs.ios.outputs.tag }}" >> "$GITHUB_OUTPUT"
       - name: Keystore aus Secret bereitstellen
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}

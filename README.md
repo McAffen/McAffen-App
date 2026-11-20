@@ -24,6 +24,8 @@ Apple erlaubt keine Installation einer Datei per Klick. Es gibt zwei Wege:
   3. Die IPA in das Programm ziehen und mit der eigenen Apple-ID anmelden. Es erledigt das Signieren.
   4. Am iPhone unter *Einstellungen → Allgemein → VPN & Geräteverwaltung* dem eigenen Profil vertrauen.
 
+  **Updates:** Die iOS-App zeigt oben einen Hinweis, sobald es eine neuere Version gibt, und verlinkt direkt auf das GitHub-Release. Die neue IPA wie oben installieren. Sie ersetzt die alte App, löschen ist nicht nötig (dieselbe Apple-ID verwenden, damit Daten und Einstellungen erhalten bleiben).
+
   Mit einer kostenlosen Apple-ID läuft die App 7 Tage und muss dann neu signiert werden (AltStore macht das automatisch, solange der Computer im selben WLAN ist).
 - **TestFlight / App Store:** noch nicht verfügbar, siehe [docs/ios-release.md](docs/ios-release.md).
 
