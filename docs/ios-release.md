@@ -44,6 +44,6 @@ Bis dahin ist der Weg über die unsignierte IPA der einfachste.
 
 ## Unterschiede zu Android
 
-- Updates laufen später über den App Store bzw. TestFlight, nicht über einen In-App-Download.
+- Updates: Die App zeigt nur einen Hinweis mit Link zum GitHub-Release (`UpdateChecker.swift`), installiert wird per AltStore/Sideloadly. Die Version stammt aus dem Release-Tag (`MARKETING_VERSION`). Über den App Store bzw. TestFlight wäre später ein echtes Update möglich.
 - Die iOS-App hat weder Offline-Cache noch Einstellungen, LAN-Brücke oder Sprachwahl.
 - Vote-Seiten öffnen sich im eingebauten Safari-Fenster.
