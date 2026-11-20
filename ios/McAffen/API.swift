@@ -31,7 +31,15 @@ struct RawStatus: Codable {
 struct VoteSite: Identifiable {
     let name: String
     let url: String
+    /// Manche Seiten erwarten den Spielernamen direkt am Ende der URL.
+    var appendsPlayerName = false
     var id: String { name }
+
+    func voteURL(player: String) -> URL? {
+        guard appendsPlayerName else { return URL(string: url) }
+        let encoded = player.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? player
+        return URL(string: url + encoded)
+    }
 }
 
 enum McAffenAPI {
@@ -60,7 +68,7 @@ enum McAffenAPI {
 
 let defaultVoteSites = [
     VoteSite(name: "minecraft-server.eu", url: "https://minecraft-server.eu/vote/index/237E8"),
-    VoteSite(name: "minecraft-serverlist.net", url: "https://www.minecraft-serverlist.net/vote/60155/"),
+    VoteSite(name: "minecraft-serverlist.net", url: "https://www.minecraft-serverlist.net/vote/60155/", appendsPlayerName: true),
     VoteSite(name: "serverliste.net", url: "https://serverliste.net/vote/5706"),
     VoteSite(name: "mc-liste.de", url: "https://www.mc-liste.de/server/358/vote#serverVotePanel"),
     VoteSite(name: "mcserv.org", url: "https://mcserv.org/de/vote/mcaffen")

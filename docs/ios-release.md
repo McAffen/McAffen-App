@@ -1,40 +1,21 @@
-# iOS-Version veröffentlichen
+# iOS: Bauen und Verteilen
 
-> **Stand:** `shared/` und die native SwiftUI-Oberfläche unter `ios/` werden auf
-> `macos-15` gebaut. Der Workflow erzeugt das Xcode-Projekt, baut die App für den
-> iOS-Simulator und lädt `.app` sowie XCFramework als Artefakte hoch. Ein
-> signierter TestFlight-Job ist noch nicht enthalten.
->
-> **Was der Workflow baut:** `:shared:iosSimulatorArm64Test`,
-> `:shared:assembleSharedXCFramework` und die SwiftUI-App für den Simulator.
-> Das XCFramework und die installierbare Simulator-App liegen als Artefakte am Lauf.
-> Der gemeinsame Main-Workflow baut iOS zuerst; schlägt der Apple-Build fehl,
-> wird der Android-Release-Job wegen `needs: ios` nicht gestartet.
->
-> **Tempo:** Der Workflow cached Gradle und den Kotlin/Native-Compiler (`~/.konan`).
-> Steht der Job lange auf „queued“, hat GitHub noch keinen macOS-Runner zugewiesen –
-> dann abbrechen und neu starten, ein zweiter Workflow-Lauf bringt nichts.
->
-> **Texte für iOS:** `app/src/main/java/de/mcaffen/app/ui/Strings.kt` enthält die
-> Oberflächentexte auf Deutsch und Englisch. Dieselben Schlüssel gehören in die
-> SwiftUI-Seite, damit beide Apps gleich sprechen.
+Die iOS-App (`ios/`, SwiftUI) und der gemeinsame Kotlin-Kern (`shared/`) werden vom
+Workflow `.github/workflows/release.yml` auf einem GitHub-macOS-Runner gebaut. Dafür
+braucht niemand einen eigenen Mac.
 
-Die iOS-App teilt sich den Datenkern mit Android: das Kotlin-Modul `shared/`
-spricht die mcaffen.de-API an, die SwiftUI-App in `ios/` ist die Oberfläche.
+## Was der Workflow erzeugt
 
-```
-shared/            gemeinsamer Kotlin-Kern (Modelle, API, Vote-Seiten, Update-Logik)
-  commonMain/      Code für beide Plattformen
-  androidMain/     OkHttp-Engine
-  iosMain/         NSURLSession-Engine
-ios/
-  McAffen/         SwiftUI-App (Rangliste, Voten, Status, Einstellungen)
-  project.yml      XcodeGen-Beschreibung → erzeugt McAffen.xcodeproj
-  ExportOptions.plist
-.github/workflows/release.yml   Gemeinsamer Main-Workflow: iOS zuerst, Android-Release danach
-```
+| Datei im Release | Zweck |
+|---|---|
+| `McAffen-unsigned.ipa` | Unsigniert, für echte Geräte. Installation per AltStore/Sideloadly (siehe [README](../README.md#iphone--ipad)) |
+| `McAffen-iOS-Simulator.app.zip` | Nur für den Xcode-Simulator |
 
-## 1. Lokal starten (braucht einen Mac)
+Zusätzlich liegen `Shared.xcframework` und die Artefakte 14 Tage am Workflow-Lauf.
+Der Schritt für die IPA ist als `continue-on-error` markiert: Scheitert er, bleibt das
+Release trotzdem möglich, nur ohne IPA.
+
+## Lokal bauen (braucht einen Mac)
 
 ```bash
 brew install xcodegen
@@ -42,81 +23,27 @@ cd ios && xcodegen generate
 open McAffen.xcodeproj
 ```
 
-Xcode baut das Kotlin-Framework automatisch vor (Build-Phase
-`embedAndSignAppleFrameworkForXcode`). Einmalig nötig: in den Signing-Einstellungen
-dein Apple-Team wählen.
+Zum Testen auf dem eigenen Gerät in Xcode unter *Signing* das persönliche Team wählen.
 
-## 2. Was Apple verlangt
+## Eigener Mac als Runner (optional)
 
-| Punkt | Wo | Hinweis |
-|---|---|---|
-| Apple Developer Program | developer.apple.com | 99 € pro Jahr, Voraussetzung für App Store und TestFlight |
-| Bundle-ID | `de.mcaffen.app` | in `ios/project.yml` änderbar |
-| App-Icon | `Assets.xcassets/AppIcon` | 1024×1024 PNG, ohne Transparenz |
-| Datenschutzerklärung | App Store Connect | Pflicht-URL; die App sendet nur Anfragen an mcaffen.de und GitHub |
-| Altersfreigabe | App Store Connect | Fragebogen, für eine Server-App unkritisch |
+Im Job `ios` von `release.yml` `runs-on: macos-15` durch `[self-hosted, macOS]` ersetzen
+und den Mac unter *Settings → Actions → Runners → New self-hosted runner* registrieren.
+Der Mac braucht Xcode, JDK 21 und `brew install xcodegen`.
 
+## Offizielle Verteilung (noch offen)
 
-## 2b. Wenn der Build einen eigenen Mac benutzt
+Für TestFlight oder den App Store ist zwingend nötig:
 
-Die Standard-Workflows nutzen einen GitHub-gehosteten macOS-Runner
-(`runs-on: macos-15`). Falls du stattdessen einen selbst gehosteten Mac einrichten
-möchtest, ändere in `.github/workflows/release.yml` den `runs-on`-Eintrag des
-`ios`-Jobs auf
-`[self-hosted, macOS]` und registriere den Mac einmalig:
+- Apple Developer Program (99 € pro Jahr)
+- App-Icon (1024×1024 PNG ohne Transparenz) in `ios/McAffen/Assets.xcassets`, Screenshots, Datenschutz-URL
+- Bundle-ID `de.mcaffen.app` bei Apple registrieren
+- Signing-Secrets im Repo (`.p12`, Provisioning-Profil, App-Store-Connect-API-Key) und ein Upload-Job im Workflow
 
-```bash
-mkdir actions-runner && cd actions-runner
-curl -O -L https://github.com/actions/runner/releases/latest/download/actions-runner-osx-arm64.tar.gz
-tar xzf actions-runner-osx-arm64.tar.gz
-./config.sh --url https://github.com/McAffen/McAffen-App --token <TOKEN>
-./run.sh          # oder: ./svc.sh install && ./svc.sh start
-```
+Bis dahin ist der Weg über die unsignierte IPA der einfachste.
 
-Den `<TOKEN>` holst du unter
-`Settings → Actions → Runners → New self-hosted runner`.
+## Unterschiede zu Android
 
-Der Mac braucht: Xcode (aktuelle Version), JDK 17, `brew install xcodegen`.
-Danach greift der iOS-Build sofort.
-
-**Alternative ohne Runner:** lokal bauen –
-`cd ios && xcodegen generate && open McAffen.xcodeproj`
-
-## 3. TestFlight über GitHub Actions
-
-Einmalig diese Secrets im Repo setzen (`Settings → Secrets and variables → Actions`):
-
-| Secret | Inhalt |
-|---|---|
-| `IOS_CERT_BASE64` | Verteilungs-Zertifikat (.p12) als Base64 |
-| `IOS_CERT_PASSWORD` | Passwort des .p12 |
-| `IOS_PROFILE_BASE64` | Provisioning-Profil (.mobileprovision) als Base64 |
-| `APP_STORE_CONNECT_KEY_ID` | Key-ID des App-Store-Connect-API-Keys |
-| `APP_STORE_CONNECT_ISSUER_ID` | Issuer-ID |
-| `APP_STORE_CONNECT_KEY` | Inhalt der `.p8`-Datei |
-
-Base64 erzeugen:
-
-```bash
-base64 -i zertifikat.p12 | pbcopy
-base64 -i profil.mobileprovision | pbcopy
-```
-
-Zusätzlich die Repository-Variable `ENABLE_TESTFLIGHT` auf `true` setzen.
-Danach `Actions → iOS Build → Run workflow` starten – der Job `testflight`
-archiviert die App und lädt sie zu App Store Connect hoch.
-
-## 4. Was in der iOS-App anders ist als auf Android
-
-- **Updates** laufen über den App Store. Die App prüft nur, ob eine neuere
-  Version existiert, und verweist dorthin – kein In-App-Download wie auf Android.
-- **Vote-Seiten** öffnen sich in `SFSafariViewController` (eingebauter Browser)
-  oder in Safari; umschaltbar in den Einstellungen.
-- **LAN-Welt**: dieselben Werte und Schritte wie auf Android (`LanInfo`).
-
-## 5. Offen vor der ersten Einreichung
-
-- App-Icon und Launch-Screen-Assets in Xcode ergänzen (Ordner
-  `ios/McAffen/Assets.xcassets`).
-- Screenshots für App Store Connect (6,7" und 6,1" iPhone).
-- Bundle-ID bei Apple registrieren und mit dem Profil verknüpfen.
+- Updates laufen später über den App Store bzw. TestFlight, nicht über einen In-App-Download.
+- Die iOS-App hat weder Offline-Cache noch Einstellungen, LAN-Brücke oder Sprachwahl.
+- Vote-Seiten öffnen sich im eingebauten Safari-Fenster.

@@ -7,8 +7,8 @@
 - Der gemeinsame Kern (`shared/`) hat seit #17 die Targets `iosArm64` und `iosSimulatorArm64`,
   baut ein `Shared.xcframework` und läuft im iOS-Simulator auf einem GitHub-macOS-Runner
   (`.github/workflows/release.yml`). Ohne eigenen Mac und ohne iPhone.
-- Die iOS-Oberfläche fehlt: Es gibt keinen Ordner `ios/`. `docs/ios-release.md` beschreibt
-  sie als Ziel, nicht als Bestand.
+- Die iOS-Oberfläche existiert inzwischen als schlanke SwiftUI-App in `ios/`.
+  Offen sind Signing und TestFlight; `docs/ios-release.md` beschreibt den Stand.
 - Der Maintainer besitzt weder ein iPhone noch einen Mac.
 
 ## Ziel
