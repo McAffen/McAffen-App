@@ -8,6 +8,7 @@ import de.mcaffen.app.model.PlayerStat
 import de.mcaffen.app.model.ServerInfo
 import de.mcaffen.app.model.ServerStatus
 import de.mcaffen.app.network.McAffenApi
+import de.mcaffen.app.network.playerCount
 import de.mcaffen.app.ui.AppLanguage
 import de.mcaffen.app.ui.Strings
 import kotlinx.coroutines.async
@@ -160,18 +161,21 @@ class McAffenRepository(
             )
         }
 
+        serverStatus.await().onFailure { error ->
+            android.util.Log.w("McAffen", "Status fehlgeschlagen: ${error.javaClass.simpleName}: ${error.message}", error)
+        }
         serverStatus.await().onSuccess { raw ->
             val infos = raw.servers.map { server ->
                 ServerInfo(
                     name = server.name ?: server.id ?: "Server",
                     type = server.type ?: if (server.main == true) "main" else "",
                     online = server.online,
-                    players = server.players?.online ?: 0,
+                    players = server.playerCount,
                     version = server.version,
                 )
             }
-            val online = raw.servers.sumOf { it.players?.online ?: 0 }
-            val networkServers = raw.servers.size.takeIf { it > 0 } ?: infos.size
+            val online = raw.onlinePlayers ?: raw.servers.sumOf { it.playerCount }
+            val networkServers = raw.networkServers ?: raw.servers.size.takeIf { it > 0 } ?: infos.size
             val messages = raw.messages
                 .ifEmpty { infos.filter { it.online }.map { Strings.of(language()).format("status.fallback.playersOnline", it.name, it.players) } }
             dao.saveStatus(
