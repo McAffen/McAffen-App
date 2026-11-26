@@ -38,16 +38,25 @@ data class RawStatusServer(
     val version: String? = null,
     val online: Boolean = false,
     val maintenance: Boolean = false,
-    val players: RawPlayers? = null,
+    /**
+     * Spielerzahl. Die aktuelle API liefert eine Zahl, die ältere ein Objekt
+     * (`{"online": 3, "max": 20}`); beides wird akzeptiert, siehe [playerCount].
+     */
+    val players: Any? = null,
 )
 
-data class RawPlayers(
-    val online: Int = 0,
-    val max: Int = 0,
-)
+/** Spieler online auf diesem Server – egal ob die API eine Zahl oder ein Objekt sendet. */
+val RawStatusServer.playerCount: Int
+    get() = when (val value = players) {
+        is Number -> value.toInt()
+        is Map<*, *> -> (value["online"] as? Number)?.toInt() ?: 0
+        else -> 0
+    }
 
 /** Antwort von `api/web.php?p=/status` (Gesamtbild des Netzwerks). */
 data class RawStatus(
+    val onlinePlayers: Int? = null,
+    val networkServers: Int? = null,
     val overall: String? = null,
     val checkedAt: String? = null,
     val servers: List<RawStatusServer> = emptyList(),
