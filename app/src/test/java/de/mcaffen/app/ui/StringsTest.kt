@@ -133,6 +133,8 @@ class StringsTest {
             "settings.info", "settings.info.version", "settings.info.server", "settings.info.disclaimer",
             "settings.language", "settings.language.hint", "settings.language.system",
             "about.title", "about.text", "about.badge", "about.legalFooter", "about.openWeb",
+            "tab.info", "subtitle.info", "info.section.events", "info.section.faq", "info.section.rules",
+            "info.section.team", "info.upcoming", "info.weekly", "info.partners", "info.empty", "info.sectionEmpty",
             "common.score", "common.runs", "common.blocks", "board.game.ndu", "board.game.jump",
             "welcome.lang.eyebrow", "welcome.lang.title", "welcome.lang.text",
             "boot.loading", "cd.logo", "about.whatsNew", "about.openSource", "legal.translationNote",

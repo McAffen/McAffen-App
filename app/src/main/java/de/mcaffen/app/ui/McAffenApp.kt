@@ -43,10 +43,13 @@ import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.HowToVote
 import androidx.compose.material.icons.outlined.Speed
 import de.mcaffen.app.ui.screens.PlayerScreen
+import de.mcaffen.app.ui.screens.InfoContent
+import de.mcaffen.app.ui.screens.InfoScreen
 import de.mcaffen.app.ui.screens.ModesScreen
 import de.mcaffen.app.ui.screens.NewsScreen
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.outlined.Person
@@ -113,6 +116,8 @@ import de.mcaffen.app.ui.components.WelcomeFlow
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -122,6 +127,7 @@ private enum class Tab(val titleKey: String) {
     NEWS("tab.news"),
     VOTES("tab.votes"),
     STATUS("tab.status"),
+    INFO("tab.info"),
     SETTINGS("tab.settings"),
 }
 
@@ -219,11 +225,46 @@ class McAffenViewModel(
         }
     }
 
+    private val _info = MutableStateFlow(InfoContent())
+    val info = _info.asStateFlow()
+
+    private val _infoLoading = MutableStateFlow(false)
+    val infoLoading = _infoLoading.asStateFlow()
+
+    private val _infoError = MutableStateFlow<String?>(null)
+    val infoError = _infoError.asStateFlow()
+
+    /** Events, FAQ, Regeln, Team und Partner laden; jeder Teil scheitert einzeln. */
+    fun loadInfo(force: Boolean = false) {
+        if (!force && !_info.value.isEmpty) return
+        viewModelScope.launch(Dispatchers.IO) {
+            _infoLoading.value = true
+            val loaded = coroutineScope {
+                val events = async { runCatching { repository.events() }.getOrNull() }
+                val faq = async { runCatching { repository.faq() }.getOrNull() }
+                val rules = async { runCatching { repository.rules() }.getOrNull() }
+                val team = async { runCatching { repository.team() }.getOrNull() }
+                val partners = async { runCatching { repository.partners() }.getOrNull() }
+                InfoContent(
+                    events = events.await() ?: de.mcaffen.app.network.EventsDto(),
+                    faq = faq.await().orEmpty(),
+                    rules = rules.await().orEmpty(),
+                    team = team.await().orEmpty(),
+                    partners = partners.await().orEmpty(),
+                )
+            }
+            if (!loaded.isEmpty) _info.value = loaded
+            _infoError.value = if (loaded.isEmpty) strings["info.empty"] else null
+            _infoLoading.value = false
+        }
+    }
+
     /** Nach einem Sprachwechsel: Status holen und bereits geladene Server-Texte erneuern. */
     fun reloadLocalized() {
         refresh()
         if (_news.value.isNotEmpty()) loadNews(force = true)
         if (_modes.value.isNotEmpty()) loadModes(force = true)
+        if (!_info.value.isEmpty) loadInfo(force = true)
     }
 
     /** Live-Test der Rangliste: schreibt das Ergebnis in die Snackbar. */
@@ -493,6 +534,9 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
     val newsLoading by vm.newsLoading.collectAsStateWithLifecycle()
     val newsError by vm.newsError.collectAsStateWithLifecycle()
     val modes by vm.modes.collectAsStateWithLifecycle()
+    val info by vm.info.collectAsStateWithLifecycle()
+    val infoLoading by vm.infoLoading.collectAsStateWithLifecycle()
+    val infoError by vm.infoError.collectAsStateWithLifecycle()
     val modesLoading by vm.modesLoading.collectAsStateWithLifecycle()
     val animationsEnabled by settings.animationsEnabled.collectAsStateWithLifecycle()
     val darkMode by settings.darkMode.collectAsStateWithLifecycle()
@@ -601,6 +645,7 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
     LaunchedEffect(selectedTab) {
         when (selectedTab) {
             Tab.NEWS -> vm.loadNews()
+            Tab.INFO -> vm.loadInfo()
             else -> {}
         }
     }
@@ -714,6 +759,7 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
                                 else strings.format("subtitle.sites", voteSites.size)
                             Tab.STATUS -> status?.let { strings.format("subtitle.online", it.onlinePlayers) }
                                 ?: strings["subtitle.live"]
+                            Tab.INFO -> strings["subtitle.info"]
                             Tab.SETTINGS -> strings.format("subtitle.version", BuildConfig.VERSION_NAME)
                         }
                         AnimatedContent(
@@ -830,6 +876,8 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
                                         if (selected) Icons.Filled.HowToVote else Icons.Outlined.HowToVote
                                     Tab.STATUS ->
                                         if (selected) Icons.Filled.Speed else Icons.Outlined.Speed
+                                    Tab.INFO ->
+                                        if (selected) Icons.Filled.Info else Icons.Outlined.Info
                                     Tab.SETTINGS -> Icons.Default.Settings
                                 },
                                     contentDescription = strings[tab.titleKey],
@@ -909,6 +957,22 @@ private fun McAffenContent(repository: McAffenRepository, settings: SettingsStor
                             }
                         },
                         onReload = { vm.loadNews(force = true) },
+                    )
+                    Tab.INFO -> InfoScreen(
+                        content = info,
+                        loading = infoLoading,
+                        error = infoError,
+                        onReload = { vm.loadInfo(force = true) },
+                        onOpen = { url ->
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse(url),
+                                    ),
+                                )
+                            }
+                        },
                     )
                     Tab.VOTES -> VoteScreen(
                         players = players,

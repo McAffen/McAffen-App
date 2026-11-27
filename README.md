@@ -36,6 +36,7 @@ Apple erlaubt keine Installation einer Datei per Klick. Es gibt zwei Wege:
 - **Sprachen:** Deutsch und Englisch. Beim ersten Start wählst du die Sprache, später unter *Einstellungen → Sprache*. Die Texte der API (Meldungen, News, Spielmodi) folgen der Sprache.
 - **Rangliste:** Platzierungen aller Spieler, für *Nacht der Untoten* und *Jump'n'Run*.
 - **Voten:** Vote-Links werden erst nach erfolgreicher Spielersuche und HTTPS-Prüfung freigeschaltet.
+- **Info:** Events, FAQ, Regeln, Team und Partner direkt aus der API.
 - **Serverstatus:** Spielerzahl, Server und Meldungen.
 - **Android zusätzlich:** Offline-Cache, Bedrock-LAN-Brücke für Konsolen, In-App-Updates, Themes. Die Rangliste zeigt auch Jump'n'Run.
 
