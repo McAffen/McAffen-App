@@ -304,6 +304,19 @@ private val translations: Map<String, Pair<String, String>> = buildMap {
     t("lan.step4.title", "In der Konsole suchen", "Search on the console")
     t("lan.step4.detail", "Im Spiel unter „Freunde“ bzw. „LAN-Welten“ nach Welten suchen. Die Welt erscheint als LAN-Welt und verbindet sich über %s.", "In the game, search for worlds under “Friends” or “LAN worlds”. The world appears as a LAN world and connects via %s.")
 
+    // --- Info-Tab (Events, FAQ, Regeln, Team) ----------------------------------
+    t("tab.info", "Info", "Info")
+    t("subtitle.info", "Events, FAQ & Regeln", "Events, FAQ & rules")
+    t("info.section.events", "Events", "Events")
+    t("info.section.faq", "FAQ", "FAQ")
+    t("info.section.rules", "Regeln", "Rules")
+    t("info.section.team", "Team", "Team")
+    t("info.upcoming", "Demnächst", "Upcoming")
+    t("info.weekly", "Jede Woche", "Every week")
+    t("info.partners", "Partner", "Partners")
+    t("info.empty", "Infos konnten nicht geladen werden.", "Info could not be loaded.")
+    t("info.sectionEmpty", "Dazu gibt es gerade nichts.", "Nothing here right now.")
+
     // --- Rangliste: zweites Spiel (Jump'n'Run) --------------------------------
     t("common.score", "Punkte", "Score")
     t("common.runs", "Runs", "Runs")
