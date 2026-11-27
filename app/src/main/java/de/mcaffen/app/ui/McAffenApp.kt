@@ -116,6 +116,8 @@ import de.mcaffen.app.ui.components.WelcomeFlow
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -237,12 +239,12 @@ class McAffenViewModel(
         if (!force && !_info.value.isEmpty) return
         viewModelScope.launch(Dispatchers.IO) {
             _infoLoading.value = true
-            val loaded = kotlinx.coroutines.coroutineScope {
-                val events = kotlinx.coroutines.async { runCatching { repository.events() }.getOrNull() }
-                val faq = kotlinx.coroutines.async { runCatching { repository.faq() }.getOrNull() }
-                val rules = kotlinx.coroutines.async { runCatching { repository.rules() }.getOrNull() }
-                val team = kotlinx.coroutines.async { runCatching { repository.team() }.getOrNull() }
-                val partners = kotlinx.coroutines.async { runCatching { repository.partners() }.getOrNull() }
+            val loaded = coroutineScope {
+                val events = async { runCatching { repository.events() }.getOrNull() }
+                val faq = async { runCatching { repository.faq() }.getOrNull() }
+                val rules = async { runCatching { repository.rules() }.getOrNull() }
+                val team = async { runCatching { repository.team() }.getOrNull() }
+                val partners = async { runCatching { repository.partners() }.getOrNull() }
                 InfoContent(
                     events = events.await() ?: de.mcaffen.app.network.EventsDto(),
                     faq = faq.await().orEmpty(),

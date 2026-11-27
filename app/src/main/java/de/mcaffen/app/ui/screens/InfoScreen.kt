@@ -45,7 +45,7 @@ import de.mcaffen.app.network.TeamMemberDto
 import de.mcaffen.app.ui.LocalStrings
 
 /** Alles, was der Info-Tab aus der API zeigt. */
-internal data class InfoContent(
+data class InfoContent(
     val events: EventsDto = EventsDto(),
     val faq: List<FaqEntryDto> = emptyList(),
     val rules: List<RuleDto> = emptyList(),
