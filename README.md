@@ -3,7 +3,7 @@
 Die App zu [mcaffen.de](https://mcaffen.de): Rangliste, Voten und Serverstatus – für **Android** und **iOS**.
 
 ## Installation
-
+ 
 Alle Dateien gibt es unter [**Releases**](https://github.com/McAffen/McAffen-App/releases/latest).
 
 ### Android
